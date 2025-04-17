@@ -1,0 +1,56 @@
+# 2025年4月15日の作業まとめ
+
+project_overview:
+  goal: Python製ターミナルチャットボットをFastAPI (バックエンド) + React (フロントエンド) のWebアプリケーションに変換する。
+  target_files:
+    chatbot_script: Chatbot-Groq/chatbot_qwq32b.py
+    backend: backend/main.py
+    frontend_component: frontend/src/App.jsx
+
+debugging_summary:
+  date: 2025-04-15
+  focus: フロントエンドのTailwind CSSスタイリング適用問題と、それに続くAPI通信問題の解決。
+
+  initial_problem:
+    issue: フロントエンドでTailwind CSSスタイルが適用されず、デフォルトのReactページが表示される。
+    frontend_port: http://localhost:3002 (または他ポート)
+
+  styling_debugging_steps:
+    - 各種設定ファイル (index.css, tailwind.config.js, postcss.config.js 等) の確認。
+    - デフォルトCSS (App.css) のクリア。
+    - PostCSSコンパイルエラーへの対応 (依存関係再インストール、キャッシュクリア等)。
+    - Create React App (CRA) のPostCSSカスタム設定制限に対応するため `craco` を導入。
+    - Tailwind CSS v4 と CRA/Craco の互換性問題 ("Package path ./base is not exported") に遭遇。
+    - Tailwind CSS を v3 (3.4.1) にダウングレード。
+    - コンパイルエラーは解消。
+    - `public/index.html` に `index.css` への直接リンクを追加（暫定的な対応の可能性あり）。
+
+  api_communication_debugging_steps:
+    - スタイリング対応後、フロントエンドからのメッセージ送信時に "Failed to fetch" エラーが発生。
+    - 原因：バックエンドのCORS設定がフロントエンドのオリジン (`http://localhost:3002`) を許可していなかった。
+    - 対策：`backend/main.py` のCORSMiddleware設定 `allow_origins` にフロントエンドのポートを追加。
+    - 結果："Failed to fetch" エラーは解消。
+
+current_status:
+  backend:
+    framework: FastAPI
+    status: 正常に実行中
+    address: http://127.0.0.1:8000
+    cors_origins: ["http://localhost:3000", "http://localhost:3002"]
+  frontend:
+    framework: React (with craco)
+    status: 正常に実行中 (コンパイル成功)
+    address: http://localhost:3002 (または他ポート)
+    tailwind_version: 3.4.1
+    styling_status: 不明瞭 (コンパイルは成功したが、APIエラー対応に移ったため最終的な表示確認は未了)
+    current_error: メッセージ送信時にバックエンドから "API エラー: Internal Server Error" が返却される。
+
+unresolved_issues:
+  - バックエンドの `/api/chat` エンドポイントで発生する "Internal Server Error" の根本原因。
+  - （バックエンドエラー解決後）フロントエンドのスタイリングが完全に適用されているかの最終確認。
+
+next_steps_proposed:
+  - バックエンドの "Internal Server Error" の診断：
+      - FastAPIサーバー (uvicorn) のターミナルログを確認し、詳細なエラーメッセージやスタックトレースを調査する。
+      - `backend/main.py` のエラーハンドリング、Groq API呼び出し、設定ファイル読み込み部分を確認する。
+  - フロントエンドのスタイリングの最終確認。
