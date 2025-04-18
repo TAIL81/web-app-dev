@@ -21,6 +21,17 @@ function App() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
+    const messageContent = input.trim().toLowerCase();
+
+    if (messageContent === 'quit' || messageContent === 'exit') {
+      // 終了処理
+      setMessages(prev => [...prev, { role: 'assistant', content: 'チャットを終了します。' }]);
+      setInput('');
+      setIsLoading(false);
+      setError(null);
+      return; // API呼び出しをスキップ
+    }
+
     const newMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, newMessage]);
     setInput('');
@@ -28,7 +39,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch('http://localhost:8002/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, newMessage] }),
@@ -72,18 +83,17 @@ function App() {
           .map((msg, index) => (
             <div
               key={index}
-              className={`flex ${msg.role === 'user' ? 'justify-end items-start' : 'justify-start items-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end items-start flex-row-reverse' : 'justify-start items-start'}`}
             >
               {msg.role === 'user' && (
-                <User className="w-8 h-8 text-gray-500 ml-2 mt-1" />
+                <User className="w-8 h-8 text-gray-500 ml-2 mt-1 order-2" />
               )}
               {msg.role === 'assistant' && (
                 <Bot className="w-8 h-8 text-blue-500 mr-2 mt-1" />
               )}
               <div
-                className={`max-w-md p-4 rounded-lg shadow ${
-                  msg.role === 'user' ? 'bg-blue-100' : 'bg-white'
-                }`}
+                className={`max-w-md p-4 rounded-lg shadow ${msg.role === 'user' ? 'bg-blue-100' : 'bg-white'
+                  } ${msg.role === 'user' ? 'order-1' : ''}`}
               >
                 {msg.reasoning && (
                   <div className="mb-2 border-b pb-2">
@@ -134,9 +144,8 @@ function App() {
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className={`p-2 rounded-lg text-white ${
-              isLoading || !input.trim() ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className={`p-2 rounded-lg text-white ${isLoading || !input.trim() ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+              }`}
           >
             <Send className="w-5 h-5" />
           </button>

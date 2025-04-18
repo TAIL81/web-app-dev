@@ -7,6 +7,8 @@ from groq import Groq, GroqError, AuthenticationError, RateLimitError, APIConnec
 from pydantic import BaseModel
 from typing import List
 
+import uvicorn
+
 app = FastAPI()
 
 # CORS 設定（React フロントエンド用）
@@ -18,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CONFIG_FILE = "../Chatbot-Groq/config.json"
+CONFIG_FILE = os.path.join(os.getcwd(), "Chatbot-Groq", "config.json")
 
 def load_config():
     try:
@@ -87,3 +89,7 @@ async def chat(request: ChatRequest):
 @app.get("/")
 async def root():
     return {"message": "FastAPI バックエンド稼働中"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="localhost", port=8002)
+    print("バックエンドサーバーがポート8002で起動しました")
