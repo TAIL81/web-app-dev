@@ -6,7 +6,7 @@ Windows 11
 
 ## Node.js
 
-16.20.2
+20.17.0
 
 ## npm
 
