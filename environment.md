@@ -30,6 +30,7 @@ uvicorn==0.34.1
 ```json
 {
     "@craco/craco": "^7.1.0",
+    "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -45,6 +46,7 @@ uvicorn==0.34.1
     "postcss-js": "^4.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
     "react-scripts": "^5.0.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^4.9.5",
