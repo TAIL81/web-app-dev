@@ -3,6 +3,7 @@ import { Send, User, Bot, BrainCircuit, AlertCircle } from 'lucide-react';
 
 function App() {
   const [messages, setMessages] = useState([
+    // 初期システムメッセージ（非表示）
     { role: 'system', content: 'Responding in fluent Japanese.', hidden: true },
   ]);
   const [input, setInput] = useState('');
@@ -21,131 +22,176 @@ function App() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const messageContent = input.trim().toLowerCase();
+    const userInput = input.trim(); // 送信するユーザー入力
+    const lowerCaseInput = userInput.toLowerCase();
 
-    if (messageContent === 'quit' || messageContent === 'exit') {
-      // 終了処理
+    // ユーザーメッセージをまず表示（quit/exit も含める）
+    const newUserMessage = { role: 'user', content: userInput };
+    setMessages(prev => [...prev, newUserMessage]);
+    setInput(''); // 入力欄をクリア
+
+    if (lowerCaseInput === 'quit' || lowerCaseInput === 'exit') {
+      // 終了メッセージをAIからの応答として表示
       setMessages(prev => [...prev, { role: 'assistant', content: 'チャットを終了します。' }]);
-      setInput('');
       setIsLoading(false);
       setError(null);
       return; // API呼び出しをスキップ
     }
 
-    const newMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, newMessage]);
-    setInput('');
     setIsLoading(true);
     setError(null);
+
+    // APIに送るメッセージ履歴（非表示メッセージは除外し、最新のユーザー入力を含める）
+    const messagesForApi = messages
+        .filter(msg => !msg.hidden) // 非表示メッセージを除外
+        .map(({ role, content }) => ({ role, content })); // roleとcontentのみ抽出
 
     try {
       const response = await fetch('http://localhost:8002/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, newMessage] }),
+        // APIには、現在の履歴（非表示除く）＋最新のユーザーメッセージを送る
+        body: JSON.stringify({ messages: [...messagesForApi, { role: 'user', content: userInput }] }),
       });
 
       if (!response.ok) {
-        throw new Error(`API エラー: ${response.statusText}`);
+        let errorDetail = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.detail || errorDetail; // バックエンドからの詳細があれば使う
+        } catch (jsonError) {
+          // JSONパース失敗時は statusText を使う
+          console.error("Error parsing error response:", jsonError);
+        }
+        throw new Error(`API エラー (${response.status}): ${errorDetail}`);
       }
 
       const data = await response.json();
+      // APIからの応答（本文とReasoning）を履歴に追加
       setMessages(prev => [
         ...prev,
         { role: 'assistant', content: data.content, reasoning: data.reasoning },
       ]);
     } catch (err) {
+      console.error("API呼び出しエラー:", err); // コンソールに詳細エラー出力
       setError(err.message);
-      // エラー時、最新のユーザー入力を履歴から削除（私のコードに合わせて）
-      setMessages(prev => prev.slice(0, -1));
+      // エラー発生時、ユーザーメッセージは表示されたままにする
+      // 必要に応じてエラーメッセージをチャット履歴に追加しても良い
+      // setMessages(prev => [...prev, { role: 'system', content: `エラー: ${err.message}`, isError: true }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleKeyPress = (e) => {
+    // Shift+Enter で改行、Enterのみで送信
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+      e.preventDefault(); // デフォルトの改行動作をキャンセル
       handleSend();
     }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      <header className="bg-white p-4 shadow">
-        <h1 className="text-2xl font-bold text-gray-800">Groq チャットボット</h1>
-        <p className="text-sm text-gray-500">日本語でチャット！「quit」か「exit」で終了。</p>
+      {/* --- ヘッダー --- */}
+      <header className="bg-white p-4 shadow-md sticky top-0 z-10">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Groq チャットボット</h1>
+        <p className="text-xs sm:text-sm text-gray-500">日本語でチャット！「quit」か「exit」で終了。</p>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* --- メインコンテンツ (チャット履歴) --- */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {messages
-          .filter(msg => !msg.hidden) // システムメッセージ非表示
+          .filter(msg => !msg.hidden) // 非表示メッセージはレンダリングしない
           .map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${msg.role === 'user' ? 'justify-end items-start flex-row-reverse' : 'justify-start items-start'}`}
-            >
+            <div key={index}>
+              {/* --- ユーザーメッセージ --- */}
               {msg.role === 'user' && (
-                <User className="w-8 h-8 text-gray-500 ml-2 mt-1 order-2" />
-              )}
-              {msg.role === 'assistant' && (
-                <Bot className="w-8 h-8 text-blue-500 mr-2 mt-1" />
-              )}
-              <div
-                className={`max-w-md p-4 rounded-lg shadow ${msg.role === 'user' ? 'bg-blue-100' : 'bg-white'
-                  } ${msg.role === 'user' ? 'order-1' : ''}`}
-              >
-                {msg.reasoning && (
-                  <div className="mb-2 border-b pb-2">
-                    <h4 className="text-sm font-semibold text-gray-500 flex items-center">
-                      <BrainCircuit className="w-4 h-4 mr-1" />
-                      思考プロセス
-                    </h4>
-                    <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                      {msg.reasoning}
-                    </pre>
+                <div className="flex justify-end items-start mb-4 group">
+                  {/* メッセージ本文 (右側) */}
+                  <div className="order-1 max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-blue-100 mr-2 break-words">
+                    <p className="text-gray-800">{msg.content}</p>
                   </div>
-                )}
-                <p>{msg.content}</p>
-              </div>
+                  {/* ユーザーアイコン (左側) */}
+                  <User className="order-2 w-8 h-8 text-gray-400 flex-shrink-0 mt-1 group-hover:text-gray-600 transition-colors" />
+                </div>
+              )}
+
+              {/* --- AI メッセージ --- */}
+              {msg.role === 'assistant' && (
+                <div className="mb-4"> {/* AIメッセージ全体 */}
+                  {/* --- 思考プロセス (あれば表示) --- */}
+                  {msg.reasoning && msg.reasoning !== "（Reasoningなし）" && (
+                    <div className="flex justify-start items-start mb-2 group">
+                      {/* 思考アイコン (左側) */}
+                      <BrainCircuit className="w-6 h-6 text-gray-400 mr-2 flex-shrink-0 mt-1 group-hover:text-purple-600 transition-colors" />
+                      {/* 思考プロセス本文 (右側) */}
+                      <div className="max-w-lg lg:max-w-xl px-3 py-2 rounded-lg shadow bg-gray-200 text-xs text-gray-700 break-words">
+                        <pre className="whitespace-pre-wrap font-sans">{msg.reasoning}</pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* --- AI 回答本文 --- */}
+                  <div className="flex justify-start items-start group">
+                    {/* AIアイコン (左側) */}
+                    <Bot className="w-8 h-8 text-blue-400 mr-2 flex-shrink-0 mt-1 group-hover:text-blue-600 transition-colors" />
+                    {/* 回答本文 (右側) */}
+                    <div className="max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-white break-words">
+                      {/* content が空の場合も考慮 */}
+                      <p className="text-gray-800">{msg.content || "..."}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
+        {/* --- ローディング表示 --- */}
         {isLoading && (
-          <div className="flex justify-start">
-            <Bot className="w-8 h-8 text-blue-500 mr-2" />
-            <div className="p-4 bg-white rounded-lg shadow">
+          <div className="flex justify-start items-center mb-4 group">
+            <Bot className="w-8 h-8 text-blue-400 mr-2 flex-shrink-0 animate-pulse group-hover:text-blue-600 transition-colors" />
+            <div className="px-4 py-2 rounded-lg shadow bg-white">
               <p className="text-gray-500 animate-pulse">応答中...</p>
             </div>
           </div>
         )}
 
+        {/* --- エラー表示 --- */}
         {error && (
-          <div className="flex justify-center items-center gap-2 p-3 bg-red-100 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <p className="text-red-600">{error}</p>
+          <div className="flex justify-center items-center gap-2 p-3 bg-red-100 rounded-lg mb-4 shadow">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <p className="text-red-600 text-sm font-medium">{error}</p>
           </div>
         )}
 
+        {/* スクロール用の空要素 */}
         <div ref={messagesEndRef} />
       </main>
 
-      <footer className="bg-white p-4 shadow">
-        <div className="flex gap-2">
+      {/* --- フッター (入力欄) --- */}
+      <footer className="bg-white p-4 shadow-inner sticky bottom-0 z-10">
+        <div className="flex items-center gap-2">
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="メッセージを入力..."
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyPress={handleKeyPress} // Enterキーでの送信
+            placeholder="メッセージを入力... (Shift+Enterで改行)"
+            className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             disabled={isLoading}
+            rows={1} // 初期表示は1行
+            style={{ resize: 'none' }} // リサイズハンドル非表示
           />
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className={`p-2 rounded-lg text-white ${isLoading || !input.trim() ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
-              }`}
+            aria-label="送信"
+            className={`p-2 rounded-lg text-white flex-shrink-0 transition-colors duration-200 ease-in-out ${
+              isLoading || !input.trim()
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+            }`}
           >
             <Send className="w-5 h-5" />
           </button>
