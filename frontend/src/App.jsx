@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, User, Bot, BrainCircuit, AlertCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown'; // react-markdown をインポート
 
 function App() {
   const [messages, setMessages] = useState([
@@ -76,8 +77,6 @@ function App() {
       console.error("API呼び出しエラー:", err); // コンソールに詳細エラー出力
       setError(err.message);
       // エラー発生時、ユーザーメッセージは表示されたままにする
-      // 必要に応じてエラーメッセージをチャット履歴に追加しても良い
-      // setMessages(prev => [...prev, { role: 'system', content: `エラー: ${err.message}`, isError: true }]);
     } finally {
       setIsLoading(false);
     }
@@ -107,13 +106,13 @@ function App() {
             <div key={index}>
               {/* --- ユーザーメッセージ --- */}
               {msg.role === 'user' && (
-                <div className="flex justify-end items-start mb-4 group">
-                  {/* メッセージ本文 (右側) */}
-                  <div className="order-1 max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-blue-100 mr-2 break-words">
+                <div className="flex justify-end items-start mb-4 group"> {/* 右寄せコンテナ */}
+                  {/* メッセージ本文 */}
+                  <div className="max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-blue-100 mr-2 break-words">
                     <p className="text-gray-800">{msg.content}</p>
                   </div>
-                  {/* ユーザーアイコン (左側) */}
-                  <User className="order-2 w-8 h-8 text-gray-400 flex-shrink-0 mt-1 group-hover:text-gray-600 transition-colors" />
+                  {/* ユーザーアイコン */}
+                  <User className="w-8 h-8 text-gray-400 flex-shrink-0 mt-1 group-hover:text-gray-600 transition-colors" />
                 </div>
               )}
 
@@ -122,10 +121,10 @@ function App() {
                 <div className="mb-4"> {/* AIメッセージ全体 */}
                   {/* --- 思考プロセス (あれば表示) --- */}
                   {msg.reasoning && msg.reasoning !== "（Reasoningなし）" && (
-                    <div className="flex justify-start items-start mb-2 group">
-                      {/* 思考アイコン (左側) */}
+                    <div className="flex justify-start items-start mb-2 group"> {/* 左寄せコンテナ */}
+                      {/* 思考アイコン */}
                       <BrainCircuit className="w-6 h-6 text-gray-400 mr-2 flex-shrink-0 mt-1 group-hover:text-purple-600 transition-colors" />
-                      {/* 思考プロセス本文 (右側) */}
+                      {/* 思考プロセス本文 */}
                       <div className="max-w-lg lg:max-w-xl px-3 py-2 rounded-lg shadow bg-gray-200 text-xs text-gray-700 break-words">
                         <pre className="whitespace-pre-wrap font-sans">{msg.reasoning}</pre>
                       </div>
@@ -133,13 +132,14 @@ function App() {
                   )}
 
                   {/* --- AI 回答本文 --- */}
-                  <div className="flex justify-start items-start group">
-                    {/* AIアイコン (左側) */}
+                  <div className="flex justify-start items-start group"> {/* 左寄せコンテナ */}
+                    {/* AIアイコン */}
                     <Bot className="w-8 h-8 text-blue-400 mr-2 flex-shrink-0 mt-1 group-hover:text-blue-600 transition-colors" />
-                    {/* 回答本文 (右側) */}
-                    <div className="max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-white break-words">
-                      {/* content が空の場合も考慮 */}
-                      <p className="text-gray-800">{msg.content || "..."}</p>
+                    {/* 回答本文 */}
+                    <div className="prose prose-sm max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-white break-words">
+                      <ReactMarkdown>
+                        {msg.content || "..."}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -149,7 +149,7 @@ function App() {
 
         {/* --- ローディング表示 --- */}
         {isLoading && (
-          <div className="flex justify-start items-center mb-4 group">
+          <div className="flex justify-start items-center mb-4 group"> {/* 左寄せコンテナ */}
             <Bot className="w-8 h-8 text-blue-400 mr-2 flex-shrink-0 animate-pulse group-hover:text-blue-600 transition-colors" />
             <div className="px-4 py-2 rounded-lg shadow bg-white">
               <p className="text-gray-500 animate-pulse">応答中...</p>
