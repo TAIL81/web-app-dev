@@ -1,6 +1,6 @@
 {
   "api_key": "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR",
-  "model_name": "deepseek-r1-distill-llama-70b",
+  "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
   "temperature": 0.6,
   "max_completion_tokens": 8192,
   "top_p": 0.95,

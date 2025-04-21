@@ -57,7 +57,7 @@ def main():
 
         # 会話履歴を保持するリスト (初期指示を追加)
         message_history = [
-            {"role": "system", "content": "Responding in fluent Japanese."}
+            {"role": "system", "content": "Respond in fluent Japanese"}
         ]
 
         while True:

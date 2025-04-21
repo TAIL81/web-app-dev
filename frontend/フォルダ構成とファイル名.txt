@@ -7,6 +7,8 @@ frontend/
 ├── README.md
 ├── tailwind.config.js
 ├── tsconfig.json
+├── フォルダ構成とファイル名.txt
+├── 見え方.json
 ├── public/
 │   ├── favicon.ico
 │   ├── index.html
