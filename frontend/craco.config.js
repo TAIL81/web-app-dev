@@ -1,12 +1,11 @@
-// craco.config.js
+// frontend/craco.config.js
 module.exports = {
-  style: {
-    postcss: {
-      mode: 'file',
-      plugins: [
-        require('tailwindcss'),
-        require('autoprefixer'),
-      ],
-    },
-  },
+  // style: { // このセクション全体を削除またはコメントアウト
+  //   postcss: {
+  //     plugins: [
+  //       require('tailwindcss'),
+  //       require('autoprefixer'),
+  //     ],
+  //   },
+  // },
 };

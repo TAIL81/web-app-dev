@@ -18,15 +18,18 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
-    "types": ["jest"]
+    "jsx": "preserve"
+    // "types" オプションは削除済みのまま
   },
   "include": [
-    "src/**/*"
+    "src/**/*" // src ディレクトリ全体を含める
+    // "src/**/*.test.ts", // include に明示的に含める方法もある
+    // "src/**/*.test.tsx"
   ],
   "exclude": [
-    "node_modules",
-    "**/*.test.ts",
-    "**/*.test.tsx"
+    "node_modules" // node_modules のみ除外する
+    // ↓ テストファイルを除外しないように変更
+    // "**/*.test.ts",
+    // "**/*.test.tsx"
   ]
 }
