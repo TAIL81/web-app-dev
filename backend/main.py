@@ -23,6 +23,9 @@ app.add_middleware(
 # 設定ファイルのパスを backend ディレクトリ内の config.json に変更
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
+# ★ デフォルトのシステム指示 (config.json に system_prompt がない場合に使用)
+DEFAULT_SYSTEM_PROMPT = "Respond in fluent Japanese"
+
 def load_config():
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
@@ -53,6 +56,10 @@ REASONING_SUPPORTED_MODELS = [
 async def chat(request: ChatRequest):
     config = load_config()
 
+    # ★ システム指示の内容を取得
+    # config.json に "system_prompt" があればそれを使い、なければ DEFAULT_SYSTEM_PROMPT を使う
+    system_prompt_content = config.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
+
     # API キー取得
     api_key = os.environ.get("GROQ_API_KEY") or config.get("api_key")
     if not api_key or api_key == "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR":
@@ -62,9 +69,17 @@ async def chat(request: ChatRequest):
     model_name = config.get("model_name", "qwen-qwq-32b") # ★ モデル名を取得
 
     try:
+        # ★ フロントエンドからのメッセージリストを Python のリストに変換
+        frontend_messages = [{"role": m.role, "content": m.content} for m in request.messages]
+
+        # ★ メッセージリストの先頭にシステム指示を追加
+        #   注意: フロントエンドが既に system role を送ってきても、この実装では先頭に追加されます。
+        #   もしフロントエンド側でシステム指示を送らない運用にする場合はこのままでOKです。
+        messages_for_api = [{"role": "system", "content": system_prompt_content}] + frontend_messages
+
         # ★ API 呼び出し用のパラメータを準備
         api_params = {
-            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "messages": messages_for_api, # ★ システム指示が追加されたリストを使用
             "model": model_name,
             "temperature": config.get("temperature", 0.6),
             "max_completion_tokens": config.get("max_completion_tokens", 8192),
