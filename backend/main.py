@@ -20,7 +20,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CONFIG_FILE = os.path.join(os.getcwd(), "Chatbot-Groq", "config.json")
+# 設定ファイルのパスを backend ディレクトリ内の config.json に変更
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
 def load_config():
     try:
