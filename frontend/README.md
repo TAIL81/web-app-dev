@@ -1,46 +1,76 @@
-# Getting Started with Create React App
+# 日本語チャットボットアプリケーション
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 技術スタック
+- React 18
+- Tailwind CSS (カスタム設定あり)
+- Lucide React アイコン
+- React Markdown
+
+## 開発環境要件
+
+### 必須環境
+- OS: Windows 11 (推奨)
+- Node.js: 20.17.0 以上
+- npm: 11.3.0 以上  
+- Python: 3.11.9 以上
+
+### バックエンド依存関係
+```bash
+fastapi==0.115.12
+groq==0.22.0
+pydantic==2.11.3
+uvicorn==0.34.1
+```
+
+### 環境セットアップ
+1. Python仮想環境作成:
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r backend/requirements.txt
+```
+
+2. Node.jsパッケージインストール:
+```bash
+npm install
+```
+
+3. バックエンドサーバー起動:
+```bash
+cd ../backend
+python main.py
+```
+
+4. フロントエンド起動:
+```bash
+npm start
+```
+
+## 主要機能
+- 日本語自然な会話インターフェース
+- AIの思考プロセス可視化
+- レスポンシブデザイン
+- エラーハンドリング
 
 ## Available Scripts
-
-In the project directory, you can run:
-
 ### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+開発モードでアプリを起動 [http://localhost:3000](http://localhost:3000)
 
 ### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+テストランナーを起動
 
 ### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+本番用ビルドを生成
 
 ### `npm run eject`
+設定ファイルを展開 (注意: 元に戻せません)
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## デプロイ
+```bash
+npm run build
+```
+ビルド後、`build`ディレクトリをデプロイ
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 参考資料
+- [Create React App ドキュメント](https://facebook.github.io/create-react-app/docs/getting-started)
+- [React ドキュメント](https://reactjs.org/)
