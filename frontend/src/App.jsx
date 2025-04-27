@@ -67,7 +67,7 @@ function App() {
       // console.log("送信するメタプロンプト:", metaPrompt);
       // ---
 
-      const response = await fetch('http://localhost:1234/v1/chat/completions', {
+      const response = await fetch(process.env.REACT_APP_LM_STUDIO_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,15 +81,24 @@ function App() {
       if (!response.ok) {
         // エラーレスポンスの形式に合わせて調整
         let errorDetail = `APIエラー (${response.status})`;
+        let errorBody = null;
         try {
-          const errorData = await response.json();
-          // LM Studioのエラー形式に合わせてキーを調整する必要があるかもしれません
-          errorDetail = errorData.error?.message || errorData.detail || JSON.stringify(errorData) || errorDetail;
-        } catch (jsonError) {
-          console.error("Error parsing error response:", jsonError);
-          errorDetail = `${errorDetail} (詳細取得失敗)`;
+          // 生のエラーボディを取得
+          errorBody = await response.text();
+          try {
+            // JSONとしてパースを試みる
+            const errorData = JSON.parse(errorBody);
+            // LM Studioのエラー形式に合わせてキーを調整する必要があるかもしれません
+            errorDetail = errorData.error?.message || errorData.detail || JSON.stringify(errorData) || errorDetail;
+          } catch (jsonError) {
+            console.error("Error parsing error response as JSON:", jsonError);
+            // JSONパースに失敗した場合、生のエラーボディをログに出力
+            console.error("Raw error response body:", errorBody);
+          }
+        } catch (textError) {
+           console.error("Error reading error response as text:", textError);
         }
-        throw new Error(errorDetail);
+        throw new Error(`API エラー (${response.status}): ${errorDetail}`);
       }
 
       const data = await response.json();
