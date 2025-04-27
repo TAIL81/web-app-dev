@@ -1,0 +1,63 @@
+# ファイル名: frontend-refactoring-plan.yaml
+plan:
+  objective: |
+    フロントエンドの App.jsx コンポーネントが持つ状態管理、イベントハンドラ、
+    API連携ロジックを分離し、コンポーネントの肥大化を解消する。
+    これにより、コードの可読性、保守性、再利用性を向上させる。
+  target_files:
+    - path: frontend/src/App.jsx
+      action: Refactor (リファクタリング)
+      description: |
+        カスタムフックと子コンポーネントを利用するように変更。
+        主にレイアウト定義とコンポーネントの組み合わせを担当する。
+    - path: frontend/src/hooks/useChat.js
+      action: Create (新規作成)
+      description: |
+        チャット関連の状態 (messages, input, isLoading, error) と
+        関連ロジック (handleSend, handleClearChat, API呼び出し, 自動スクロール) を
+        カプセル化するカスタムフック。
+    - path: frontend/src/components/ChatHeader.jsx
+      action: Create (新規作成)
+      description: |
+        アプリケーションヘッダー部分（タイトル、ダークモード切り替えボタン等）を表示する
+        UIコンポーネント。
+    - path: frontend/src/components/MessageList.jsx
+      action: Create (新規作成)
+      description: |
+        チャットメッセージのリストを表示するUIコンポーネント。
+        メッセージデータとスクロール用Refを受け取る。
+    - path: frontend/src/components/ChatInput.jsx
+      action: Create (新規作成)
+      description: |
+        テキスト入力エリア、送信ボタン、クリアボタン、プロンプト拡張ボタン等を
+        含むUIコンポーネント。入力値、各種ハンドラ、ローディング状態等を受け取る。
+    - path: frontend/src/components/ErrorMessage.jsx
+      action: Create (新規作成)
+      description: |
+        エラーメッセージを表示するUIコンポーネント。エラー情報を受け取る。
+  key_changes:
+    - item: カスタムフック `useChat` の導入
+      details:
+        - 責務: チャット機能の状態管理とビジネスロジック。
+        - 管理対象: `messages`, `input`, `isLoading`, `error`, `messagesEndRef`。
+        - 提供関数: `handleSend`, `handleClearChat`, `setInput` など。
+        - API通信ロジックもフック内に実装する。
+    - item: UIコンポーネントへの分割
+      details:
+        - `App.jsx` 内のJSXを機能単位で `ChatHeader`, `MessageList`, `ChatInput`, `ErrorMessage` 等のコンポーネントに分割する。
+        - 各コンポーネントは Props を通じて必要なデータや関数を受け取るようにする。
+        - コンポーネントの責務を単一にする（例: `MessageList` は表示のみに責任を持つ）。
+    - item: `App.jsx` の役割変更
+      details:
+        - `useChat` フックを呼び出してチャットの状態と関数を取得する。
+        - 分割したUIコンポーネントを組み合わせて、アプリケーション全体のレイアウトを構成する。
+        - 必要に応じて、コンポーネント間で Props の受け渡しを行う（例: ダークモードの状態）。
+  expected_benefits:
+    - 可読性向上: 各コンポーネントやフックの役割が明確になり、コードが読みやすくなる。
+    - 保守性向上: 機能変更やバグ修正時の影響範囲が限定され、メンテナンスが容易になる。
+    - 再利用性向上: `useChat` フックやUIコンポーネントが他の箇所でも再利用可能になる。
+    - テスト容易性向上: 分割された単位でテストが書きやすくなる。
+  considerations:
+    - プロンプト拡張機能 (`handleExpandPrompt`, `isExpanding`) のロジックを `useChat` フックに含めるか、別のカスタムフック (`usePromptExpansion` など) に分離するかを決定する。
+    - ダークモードの状態管理 (`isDarkMode`, `toggleDarkMode`) を `App.jsx` に残すか、より広範囲で利用する場合は Context API や状態管理ライブラリの導入を検討する。
+    - リファクタリング前後で既存の機能やUIの挙動が変わらないように注意深くテストする。
