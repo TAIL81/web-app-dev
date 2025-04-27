@@ -39,13 +39,12 @@ npm install
 
 3. バックエンドサーバー起動:
 ```bash
-cd ../backend
-python main.py
+python backend/main.py
 ```
 
 4. フロントエンド起動:
 ```bash
-npm start
+cd frontend && npm start
 ```
 
 ## 主要機能
