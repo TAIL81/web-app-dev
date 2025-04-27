@@ -31,10 +31,15 @@ def load_config():
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
+        print(f"エラー: 設定ファイル '{CONFIG_FILE}' が見つかりません。")
         raise HTTPException(status_code=500, detail=f"設定ファイル '{CONFIG_FILE}' が見つかりません。")
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"エラー: 設定ファイル '{CONFIG_FILE}' の形式が正しくありません。詳細: {e}")
         raise HTTPException(status_code=500, detail=f"設定ファイル '{CONFIG_FILE}' の形式が正しくありません。")
     except Exception as e:
+        import traceback
+        print(f"エラー: 設定ファイルの読み込み中に予期せぬエラーが発生しました: {type(e).__name__}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"設定ファイルの読み込み中にエラー: {e}")
 
 # メッセージのモデル
@@ -119,30 +124,35 @@ async def chat(request: ChatRequest):
             "reasoning": final_reasoning # ★ 取得した reasoning を返す
         }
 
-    except AuthenticationError:
+    except AuthenticationError as e:
+        print(f"エラー: Groq API 認証エラー: {e}")
         raise HTTPException(status_code=401, detail="Groq API 認証エラー: API キーを確認してください。")
-    except RateLimitError:
+    except RateLimitError as e:
+        print(f"エラー: レート制限に達しました: {e}")
         # time.sleep(5) # レート制限時に待機するのは必ずしも良い戦略ではない場合がある
         raise HTTPException(status_code=429, detail="レート制限に達しました。少し待って再試行してください。")
-    except APIConnectionError:
+    except APIConnectionError as e:
+        print(f"エラー: Groq API 接続エラー: {e}")
         raise HTTPException(status_code=503, detail="Groq API 接続エラー: ネットワークを確認してください。")
     except BadRequestError as e:
-        # エラーレスポンスの本文を取得しようと試みる
+        # エラーレスポンスの本文を安全に取得しようと試みる
         error_details = str(e)
-        try:
-            # Groqのエラーレスポンスは e.response.json() で詳細が取れることがある
-            error_body = e.response.json()
-            error_details = error_body.get('error', {}).get('message', str(e))
-        except Exception:
-            pass # JSONデコード失敗などは無視
-        print(f"Groq BadRequestError details: {error_details}") # 詳細を出力
+        error_response = getattr(e, 'response', None)
+        if error_response:
+            try:
+                error_body = error_response.json()
+                error_details = error_body.get('error', {}).get('message', str(e))
+            except Exception:
+                pass # JSONデコード失敗などは無視
+        print(f"エラー: Groq BadRequestError details: {error_details}") # 詳細を出力
         raise HTTPException(status_code=400, detail=f"リクエストエラー: {error_details}")
     except GroqError as e:
+        print(f"エラー: Groq API エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Groq API エラー: {str(e)}")
     except Exception as e:
         # 予期せぬエラーの詳細もログに出力するとデバッグしやすい
         import traceback
-        print(f"予期せぬエラーが発生しました: {type(e).__name__}")
+        print(f"エラー: 予期せぬエラーが発生しました: {type(e).__name__}")
         print(traceback.format_exc()) # スタックトレースを出力
         raise HTTPException(status_code=500, detail=f"予期せぬサーバーエラーが発生しました。")
 
