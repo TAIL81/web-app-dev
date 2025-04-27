@@ -28,7 +28,7 @@ const Message = ({ message }) => {
             <div className="flex justify-start items-start mb-2 group">
               <BrainCircuit className="w-6 h-6 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
               <div className="max-w-lg lg:max-w-xl px-3 py-2 rounded-lg shadow bg-gray-200 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 break-words">
-                <pre className="whitespace-pre-wrap font-sans">{message.reasoning}</pre>
+                <pre className="whitespace-pre-wrap font-reasoning">{message.reasoning}</pre>
               </div>
             </div>
           )}
