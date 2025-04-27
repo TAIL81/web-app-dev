@@ -1,8 +1,8 @@
 // react-textarea-autosize をインポート
 import TextareaAutosize from 'react-textarea-autosize';
 import { useState, useEffect, useRef } from 'react';
-// Sun, Moon, Trash2 アイコンをインポート
-import { Send, User, Bot, BrainCircuit, AlertCircle, Sun, Moon, Trash2 } from 'lucide-react'; // Trash2 を追加
+// Sun, Moon, Trash2, Send, User, Bot, BrainCircuit, AlertCircle, Sparkles アイコンをインポート
+import { Send, User, Bot, BrainCircuit, AlertCircle, Sun, Moon, Trash2, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 function App() {
@@ -16,26 +16,19 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const [isExpanding, setIsExpanding] = useState(false); // プロンプト拡張中かどうかの状態
 
   // --- ダークモード関連 ---
-  // 現在のモードを管理する状態 (false: ライト, true: ダーク)
   const [isDarkMode, setIsDarkMode] = useState(false); // 初期値はライトモード
-
-  // モードを切り替える関数
   const toggleDarkMode = () => {
-    setIsDarkMode(prevMode => !prevMode); // 現在の状態を反転
+    setIsDarkMode(prevMode => !prevMode);
   };
-
-  // isDarkMode の状態が変わった時、または最初に読み込まれた時に実行
   useEffect(() => {
-    // isDarkMode が true なら <html> タグに 'dark' クラスを追加
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
-      // isDarkMode が false なら <html> タグから 'dark' クラスを削除
       document.documentElement.classList.remove('dark');
     }
-    // isDarkMode が変更されたら、この useEffect を再度実行する
   }, [isDarkMode]);
   // --- /ダークモード関連 ---
 
@@ -47,7 +40,7 @@ function App() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading || isExpanding) return; // 拡張中も送信不可に
 
     const userInput = input.trim();
     const lowerCaseInput = userInput.toLowerCase();
@@ -110,19 +103,96 @@ function App() {
 
   // --- チャットクリア処理 ---
   const handleClearChat = () => {
-    // 確認ダイアログを表示
     if (window.confirm("チャット履歴をクリアしますか？")) {
-      // messages state を初期状態に戻す
       setMessages(initialMessages);
-      // (任意) エラー表示もクリアする
       setError(null);
-      // (任意) ローディング状態も解除する
       setIsLoading(false);
-      // (任意) 入力中の内容もクリアする
+      setIsExpanding(false); // 拡張中状態もリセット
       setInput('');
     }
   };
   // --- /チャットクリア処理 ---
+
+  // --- ▼▼▼ プロンプト拡張ボタンのハンドラー (修正版) ▼▼▼ ---
+  const handleExpandPrompt = async () => {
+    const currentInput = input.trim();
+    if (!currentInput || isLoading || isExpanding) return;
+
+    setIsExpanding(true);
+    setError(null);
+
+    try {
+      // --- メタプロンプトの指示内容を修正 ---
+      const metaPrompt = `
+以下のユーザー入力を、より明確で詳細な一つの質問文または指示文に書き換えてください。
+元の質問や指示の意図は変えずに、より多くの情報が得られるような形にしてください。
+応答は書き換えた文のみとし、追加の説明や質問は含めないでください。
+
+ユーザー入力: ${currentInput}
+
+書き換え後の文:
+      `.trim();
+      // --- メタプロンプトここまで ---
+
+      // --- デバッグ用にコンソールに出力 (任意) ---
+      // console.log("送信するメタプロンプト:", metaPrompt);
+      // ---
+
+      const response = await fetch('http://localhost:1234/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: metaPrompt }],
+          temperature: 0.5, // 少し創造性を抑える
+          max_tokens: 150,  // 拡張後の長さを調整
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        // エラーレスポンスの形式に合わせて調整
+        let errorDetail = `APIエラー (${response.status})`;
+        try {
+          const errorData = await response.json();
+          // LM Studioのエラー形式に合わせてキーを調整する必要があるかもしれません
+          errorDetail = errorData.error?.message || errorData.detail || JSON.stringify(errorData) || errorDetail;
+        } catch (jsonError) {
+          console.error("Error parsing error response:", jsonError);
+          errorDetail = `${errorDetail} (詳細取得失敗)`;
+        }
+        throw new Error(errorDetail);
+      }
+
+      const data = await response.json();
+
+      // --- レスポンス処理の修正 (ラベル変更に対応) ---
+      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+        const expandedPrompt = data.choices[0].message.content
+          .replace(/^書き換え後の文:\s*/i, '') // ラベルを '書き換え後の文:' に変更
+          .trim();
+
+        if (expandedPrompt) {
+          setInput(expandedPrompt);
+        } else {
+          console.warn("拡張後のプロンプトが空です。");
+          // 必要であればユーザーに通知
+          setError("プロンプトの拡張に失敗しました（結果が空）。");
+        }
+      } else {
+        console.error("API応答の形式が不正です:", data);
+        throw new Error("プロンプト拡張に失敗しました (不正な応答形式)。");
+      }
+      // --- レスポンス処理ここまで ---
+
+    } catch (err) {
+      console.error("プロンプト拡張エラー:", err);
+      setError(err.message || "不明なエラーが発生しました。"); // エラーメッセージが空の場合のフォールバック
+    } finally {
+      setIsExpanding(false);
+    }
+  };
+  // --- ▲▲▲ プロンプト拡張ボタンのハンドラーここまで ▲▲▲ ---
+
 
   return (
     // ルート要素: ダークモード用の背景色を追加
@@ -203,8 +273,8 @@ function App() {
             </div>
           ))}
 
-        {/* ローディング表示 */}
-        {isLoading && (
+        {/* ローディング表示 (通常の送信時) */}
+        {isLoading && !isExpanding && ( // 拡張中は表示しないように条件追加
           <div className="flex justify-start items-center mb-4 group">
             <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 mr-2 flex-shrink-0 animate-pulse group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             <div className="px-4 py-2 rounded-lg shadow bg-white dark:bg-dark-card">
@@ -236,20 +306,44 @@ function App() {
             onKeyPress={handleKeyPress} // Enterキーでの送信処理
             placeholder="メッセージを入力... (Shift+Enterで改行)"
             className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-hidden" // resize-none, overflow-hidden 追加
-            disabled={isLoading}
+            disabled={isLoading || isExpanding} // 拡張中も無効化
             minRows={1} // 最小1行
             maxRows={6} // 最大6行 (超えるとスクロール)
             aria-label="メッセージ入力" // アクセシビリティのためのラベル
           />
-          {/* 送信ボタン: ホバー時のスケールアニメーションを追加 */}
+
+          {/* --- ▼▼▼ プロンプト拡張ボタン (isExpanding 状態を反映) ▼▼▼ --- */}
+          <button
+            id="expand-prompt-button"
+            onClick={handleExpandPrompt}
+            aria-label="プロンプトを拡張"
+            title="入力内容を基にプロンプトを拡張"
+            className={`p-2 rounded-lg text-gray-600 dark:text-gray-400 flex-shrink-0 transition duration-200 ease-in-out transform ${
+              isLoading || !input.trim() || isExpanding // isExpanding を無効化条件に追加
+                ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50'
+                : 'bg-yellow-100 dark:bg-yellow-800 hover:bg-yellow-200 dark:hover:bg-yellow-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 dark:focus:ring-yellow-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
+            }`}
+            disabled={isLoading || !input.trim() || isExpanding} // isExpanding を無効化条件に追加
+          >
+            {/* 拡張中はスピナーアイコンを表示するなどの工夫も可能 */}
+            {isExpanding ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 dark:border-gray-100"></div> // 簡単なスピナー例
+            ) : (
+              <Sparkles className="w-5 h-5" />
+            )}
+          </button>
+          {/* --- ▲▲▲ プロンプト拡張ボタンここまで ▲▲▲ --- */}
+
+
+          {/* 送信ボタン: 拡張中も無効化 */}
           <button
             onClick={handleSend}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !input.trim() || isExpanding} // isExpanding を無効化条件に追加
             aria-label="送信"
-            className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${ // transition と transform を調整
-              isLoading || !input.trim()
+            className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${
+              isLoading || !input.trim() || isExpanding // isExpanding を無効化条件に追加
                 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
-                : 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card' // hover:scale-110 追加
+                : 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
             }`}
           >
             <Send className="w-5 h-5" />
