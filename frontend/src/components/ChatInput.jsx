@@ -21,7 +21,8 @@ const ChatInput = ({
           onChange={e => setInput(e.target.value)}
           onKeyPress={handleKeyPress} // Enterキーでの送信処理
           placeholder="メッセージを入力... (Shift+Enterで改行)"
-          className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-hidden" // resize-none, overflow-hidden 追加
+          className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-hidden"
+          style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}
           disabled={isLoading || isExpanding} // 拡張中も無効化
           minRows={1} // 最小1行
           maxRows={6} // 最大6行 (超えるとスクロール)

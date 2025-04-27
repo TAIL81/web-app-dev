@@ -14,7 +14,7 @@ const Message = ({ message }) => {
       {message.role === 'user' && (
         <div className="flex justify-end items-start mb-4 group">
           <div className="max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-blue-100 dark:bg-blue-900 dark:bg-opacity-80 mr-2 break-words">
-            <p className="text-gray-800 dark:text-dark-text">{message.content}</p>
+            <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p>
           </div>
           <User className="w-8 h-8 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
         </div>
@@ -38,7 +38,11 @@ const Message = ({ message }) => {
             <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 mr-2 flex-shrink-0 mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             {/* prose-invert で typography プラグインのダークモードスタイルを適用 */}
             <div className="prose prose-sm max-w-lg lg:max-w-xl px-4 py-2 rounded-lg shadow bg-white dark:bg-dark-card dark:prose-invert break-words">
-              <ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  p: ({node, ...props}) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} />
+                }}
+              >
                 {message.content || "..."}
               </ReactMarkdown>
             </div>
