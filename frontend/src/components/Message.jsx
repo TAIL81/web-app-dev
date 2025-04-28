@@ -72,6 +72,29 @@ const Message = ({ message }) => {
           )}
           {/* --- ▲ 思考プロセス (Reasoning) の折りたたみ表示に変更 ▲ --- */}
 
+          {/* --- ▼ Agentic Tooling (Tool Calls) の表示を追加 ▼ --- */}
+          {message.tool_calls && message.tool_calls.length > 0 && (
+            <div className="flex justify-start items-start mb-2 group">
+              {/* ツール呼び出しを示すアイコン (例: 歯車やリンクアイコンなど) */}
+              {/* Lucide React に適切なアイコンがないか確認し、なければ一時的にテキスト表示 */}
+              {/* ここでは仮に BrainCircuit を再利用するか、テキストで表示 */}
+              <BrainCircuit className="w-6 h-6 text-yellow-500 dark:text-yellow-400 mr-2 flex-shrink-0 mt-1 group-hover:text-yellow-600 dark:group-hover:text-yellow-300 transition-colors" />
+              <div className="w-full max-w-lg lg:max-w-xl px-3 py-2 rounded-lg shadow bg-yellow-100 dark:bg-yellow-900 text-xs text-yellow-800 dark:text-yellow-200 break-words">
+                <p className="font-semibold mb-1">ツール呼び出し:</p>
+                {/* 各ツール呼び出しの詳細を表示 */}
+                {message.tool_calls.map((toolCall, index) => (
+                  <div key={index} className="mb-1 last:mb-0">
+                    <p className="font-mono text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">{toolCall.function.name}</span>({JSON.stringify(toolCall.function.arguments)})
+                    </p>
+                  </div>
+                ))}
+                {/* ツール実行中の表示などをここに追加することも検討 */}
+              </div>
+            </div>
+          )}
+          {/* --- ▲ Agentic Tooling (Tool Calls) の表示を追加 ▲ --- */}
+
 
           {/* AI 回答本文 (message.content をそのまま表示) */}
           <div className="flex justify-start items-start group">
@@ -83,8 +106,8 @@ const Message = ({ message }) => {
                   {message.content}
                 </ReactMarkdown>
               ) : (
-                // コンテンツがない場合のフォールバック
-                !message.reasoning && "..."
+                // コンテンツがない場合のフォールバック (ツール呼び出しがある場合は表示しない)
+                !message.reasoning && (!message.tool_calls || message.tool_calls.length === 0) && "..."
               )}
             </div>
           </div>

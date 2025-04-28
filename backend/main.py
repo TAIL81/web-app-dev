@@ -73,17 +73,41 @@ async def chat(request: ChatRequest):
     model_name = config.get("model_name", "qwen-qwq-32b") # ★ モデル名を取得
 
     try:
-        # ★ フロントエンドからのメッセージリストを Python のリストに変換
-        frontend_messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        # ★ API に送信するメッセージリストを構築
+        messages_for_api = []
 
-        # ★ メッセージリストの先頭にシステム指示を追加
-        #   注意: フロントエンドが既に system role を送ってきても、この実装では先頭に追加されます。
-        #   もしフロントエンド側でシステム指示を送らない運用にする場合はこのままでOKです。
-        messages_for_api = [{"role": "system", "content": system_prompt_content}] + frontend_messages
+        # システム指示を追加
+        messages_for_api.append({"role": "system", "content": system_prompt_content})
+
+        # フロントエンドからのメッセージを処理
+        for msg in request.messages:
+            if isinstance(msg.content, list):
+                # content がリストの場合 (マルチモーダル形式を想定)
+                # 各要素を Groq API が期待する形式に変換して追加
+                processed_content = []
+                for item in msg.content:
+                    if isinstance(item, dict) and "type" in item:
+                        if item["type"] == "text" and "text" in item:
+                            processed_content.append({"type": "text", "text": item["text"]})
+                        elif item["type"] == "image_url" and "image_url" in item and "url" in item["image_url"]:
+                             # Vision モデルが認識できる形式
+                            processed_content.append({"type": "image_url", "image_url": {"url": item["image_url"]["url"]}})
+                        # 他のタイプ（例: tool_code, tool_results など）も必要に応じてここに追加
+                    elif isinstance(item, str):
+                         # リスト内に文字列がある場合もテキストとして扱う
+                         processed_content.append({"type": "text", "text": item})
+
+                if processed_content:
+                    messages_for_api.append({"role": msg.role, "content": processed_content})
+
+            elif isinstance(msg.content, str):
+                # content が文字列の場合 (通常のテキストメッセージ)
+                messages_for_api.append({"role": msg.role, "content": msg.content})
+            # その他の形式は無視するか、エラーハンドリングを追加
 
         # ★ API 呼び出し用のパラメータを準備
         api_params = {
-            "messages": messages_for_api, # ★ システム指示が追加されたリストを使用
+            "messages": messages_for_api, # ★ 構築した messages_for_api を使用
             "model": model_name,
             "temperature": config.get("temperature", 0.6),
             "max_completion_tokens": config.get("max_completion_tokens", 8192),
@@ -118,18 +142,26 @@ async def chat(request: ChatRequest):
         # reasoning_content が None や空文字列でない場合のみそれを使い、そうでなければ固定文字列を返す
         final_reasoning = reasoning_content if reasoning_content else "（Reasoningなし）"
 
-        return {
+        response_data = {
             "content": response_message.content,
             "reasoning": final_reasoning # ★ 取得した reasoning を返す
         }
+
+        # ★ tool_calls が存在する場合、レスポンスに含める
+        if response_message.tool_calls:
+            # tool_calls はリストなので、そのまま含める
+            # Pydanticモデルを辞書に変換するために model_dump() を使用
+            response_data["tool_calls"] = [tc.model_dump() for tc in response_message.tool_calls]
+
+        return response_data
 
     except AuthenticationError as e:
         print(f"エラー: Groq API 認証エラー: {e}")
         raise HTTPException(status_code=401, detail="Groq API 認証エラー: API キーを確認してください。")
     except RateLimitError as e:
         print(f"エラー: レート制限に達しました: {e}")
-        # time.sleep(5) # レート制限時に待機するのは必ずしも良い戦略ではない場合がある
-        raise HTTPException(status_code=429, detail="レート制限に達しました。少し待って再試行してください。")
+        # レート制限エラーの場合、具体的なメッセージを返す
+        raise HTTPException(status_code=429, detail="Groq API のレート制限に達しました。しばらく待ってから再試行してください。")
     except APIConnectionError as e:
         print(f"エラー: Groq API 接続エラー: {e}")
         raise HTTPException(status_code=503, detail="Groq API 接続エラー: ネットワークを確認してください。")
