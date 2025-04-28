@@ -1,160 +1,237 @@
+# d:\Users\onisi\Documents\web-app-dev\backend\main.py
 import os
 import json
 import time
-from fastapi import FastAPI, HTTPException
+import sys
+# --- ▼▼▼ BackgroundTasks をインポート ▼▼▼ ---
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+# --- ▲▲▲ BackgroundTasks をインポート ▲▲▲ ---
+# 重複していた HTTPException のインポートを削除
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq, GroqError, AuthenticationError, RateLimitError, APIConnectionError, BadRequestError
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict, Any, Optional
 
 import uvicorn
+import traceback
 
-app = FastAPI()
+app = FastAPI(
+    title="Groq Chat API Backend",
+    description="Backend for the chat application using Groq API.",
+    version="0.1.0",
+)
 
-# CORS 設定（React フロントエンド用）
+# CORS 設定
+frontend_origins = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000").split(',')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3002", "http://localhost:3003"],  # React のポート
+    allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 設定ファイルのパスを backend ディレクトリ内の config.json に変更
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
-
-# ★ デフォルトのシステム指示 (config.json に system_prompt がない場合に使用)
 DEFAULT_SYSTEM_PROMPT = "Respond in fluent Japanese"
 
 def load_config():
+    """設定ファイルを読み込む関数"""
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            config_data = json.load(f)
+            print(f"設定ファイルを読み込みました: {CONFIG_FILE}")
+            return config_data
     except FileNotFoundError:
+        print(f"エラー: 設定ファイル '{CONFIG_FILE}' が見つかりません。")
         raise HTTPException(status_code=500, detail=f"設定ファイル '{CONFIG_FILE}' が見つかりません。")
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"エラー: 設定ファイル '{CONFIG_FILE}' の形式が正しくありません。詳細: {e}")
         raise HTTPException(status_code=500, detail=f"設定ファイル '{CONFIG_FILE}' の形式が正しくありません。")
     except Exception as e:
+        print(f"エラー: 設定ファイルの読み込み中に予期せぬエラーが発生しました: {type(e).__name__}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"設定ファイルの読み込み中にエラー: {e}")
 
-# メッセージのモデル
+# --- Pydantic Models ---
 class Message(BaseModel):
     role: str
     content: str
 
 class ChatRequest(BaseModel):
     messages: List[Message]
+    # --- ▼▼▼ プロンプト拡張用にフロントエンドからパラメータを受け取れるように修正 ▼▼▼ ---
+    model_name: Optional[str] = None
+    temperature: Optional[float] = None
+    max_completion_tokens: Optional[int] = None
+    # --- ▲▲▲ プロンプト拡張用にフロントエンドからパラメータを受け取れるように修正 ▲▲▲ ---
 
-# ★ Reasoning 対応モデルのリストを定義
+
+class ToolCallFunction(BaseModel):
+    name: str
+    arguments: str
+
+class ToolCall(BaseModel):
+    type: str = "function"
+    function: ToolCallFunction
+
+class ChatResponse(BaseModel):
+    content: str
+    reasoning: Optional[Any] = None
+    tool_calls: Optional[List[ToolCall]] = None
+
 REASONING_SUPPORTED_MODELS = [
     "qwen-qwq-32b",
     "deepseek-r1-distill-llama-70b",
-    "deepseek-r1-distill-qwen-32b"
 ]
 
-@app.post("/api/chat")
-async def chat(request: ChatRequest):
+# --- API Endpoints ---
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest): # ChatRequest を使用
+    """
+    Handles chat requests from the frontend, interacts with Groq API,
+    and returns the response.
+    Accepts model_name, temperature, max_completion_tokens from request body.
+    """
+    print("\n--- New Chat Request Received ---")
     config = load_config()
-
-    # ★ システム指示の内容を取得
-    # config.json に "system_prompt" があればそれを使い、なければ DEFAULT_SYSTEM_PROMPT を使う
     system_prompt_content = config.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
-
-    # API キー取得
+    print(f"System Prompt: '{system_prompt_content[:100]}...'")
     api_key = os.environ.get("GROQ_API_KEY") or config.get("api_key")
     if not api_key or api_key == "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR":
-        raise HTTPException(status_code=401, detail="有効な API キーが設定されていません。")
-
-    client = Groq(api_key=api_key)
-    model_name = config.get("model_name", "qwen-qwq-32b") # ★ モデル名を取得
+        print("エラー: 有効な Groq API キーが設定されていません。")
+        raise HTTPException(status_code=401, detail="有効な Groq API キーが設定されていません。")
 
     try:
-        # ★ フロントエンドからのメッセージリストを Python のリストに変換
-        frontend_messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        client = Groq(api_key=api_key)
+    except Exception as e:
+        print(f"エラー: Groq クライアントの初期化に失敗しました: {e}")
+        raise HTTPException(status_code=500, detail=f"Groq クライアント初期化エラー: {e}")
 
-        # ★ メッセージリストの先頭にシステム指示を追加
-        #   注意: フロントエンドが既に system role を送ってきても、この実装では先頭に追加されます。
-        #   もしフロントエンド側でシステム指示を送らない運用にする場合はこのままでOKです。
-        messages_for_api = [{"role": "system", "content": system_prompt_content}] + frontend_messages
+    # --- ▼▼▼ リクエストボディ > 設定ファイル の優先順位でパラメータを決定 ▼▼▼ ---
+    model_name = request.model_name or config.get("model_name", "qwen-qwq-32b")
+    temperature = request.temperature if request.temperature is not None else config.get("temperature", 0.6)
+    max_tokens = request.max_completion_tokens or config.get("max_completion_tokens", 8192)
+    # --- ▲▲▲ リクエストボディ > 設定ファイル の優先順位でパラメータを決定 ▲▲▲ ---
 
-        # ★ API 呼び出し用のパラメータを準備
+    print(f"Using Model: {model_name}")
+
+    try:
+        messages_for_api = []
+        if system_prompt_content:
+            # メタプロンプトの場合はシステムプロンプトを追加しないなどの制御が必要ならここで行う
+            # 今回はシンプルに常にシステムプロンプトを追加する（メタプロンプトでも）
+            messages_for_api.append({"role": "system", "content": system_prompt_content})
+
+        print("Processing messages from frontend:")
+        for msg in request.messages:
+            if isinstance(msg.content, str):
+                messages_for_api.append({"role": msg.role, "content": msg.content})
+                print(f"  - Role: {msg.role}, Content (first 100 chars): '{msg.content[:100]}...'")
+            else:
+                print(f"  - Warning: Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}")
+
         api_params = {
-            "messages": messages_for_api, # ★ システム指示が追加されたリストを使用
+            "messages": messages_for_api,
             "model": model_name,
-            "temperature": config.get("temperature", 0.6),
-            "max_completion_tokens": config.get("max_completion_tokens", 8192),
-            "top_p": config.get("top_p", 0.95),
-            "stream": config.get("stream", False),
-            # 注意: reasoning_format はここではまだ追加しない
+            "temperature": temperature, # 決定した値を使用
+            "max_tokens": max_tokens,   # 決定した値を使用
+            "top_p": config.get("top_p", 0.95), # これは設定ファイルからのみ取得
+            "stream": config.get("stream", False), # これは設定ファイルからのみ取得
         }
+        print(f"API Parameters (excluding messages): { {k: v for k, v in api_params.items() if k != 'messages'} }")
 
-        # ★ モデルが Reasoning 対応リストに含まれていれば、reasoning_format を追加
+        # Reasoning Format の設定 (変更なし)
         if model_name in REASONING_SUPPORTED_MODELS:
-            # config.json に reasoning_format があればそれを使い、なければ 'parsed' を使う
             reasoning_format_value = config.get("reasoning_format", "parsed")
-            # 'hidden' や 'raw' も設定できるように、値を取得して設定
             if reasoning_format_value in ["parsed", "raw", "hidden"]:
                  api_params["reasoning_format"] = reasoning_format_value
+                 print(f"Reasoning Format: {reasoning_format_value}")
             else:
-                 # 不正な値が設定されていた場合はデフォルトの 'parsed' を使うか、エラーにするか選べる
-                 # ここではデフォルトの 'parsed' を使うことにする
                  api_params["reasoning_format"] = "parsed"
-                 print(f"警告: config.json の reasoning_format ('{reasoning_format_value}') は無効な値です。'parsed' を使用します。")
+                 print(f"Warning: Invalid reasoning_format ('{reasoning_format_value}') in config. Using 'parsed'.")
 
-
-        # ★ 準備したパラメータを使って API を呼び出す
+        start_time = time.time()
+        print("Calling Groq API...")
         completion = client.chat.completions.create(**api_params)
+        end_time = time.time()
+        print(f"Groq API call finished in {end_time - start_time:.2f} seconds.")
 
         response_message = completion.choices[0].message
-
-        # ★ reasoning 属性が存在するかチェックして取得 (より安全な方法)
-        # getattr は属性が存在しない場合に None を返す
         reasoning_content = getattr(response_message, 'reasoning', None)
+        tool_calls_content = getattr(response_message, 'tool_calls', None)
 
-        # reasoning_content が None や空文字列でない場合のみそれを使い、そうでなければ固定文字列を返す
-        final_reasoning = reasoning_content if reasoning_content else "（Reasoningなし）"
+        response_data = ChatResponse(
+            content=response_message.content or "",
+            reasoning=reasoning_content if reasoning_content else "（Reasoningなし）",
+            tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None
+        )
 
-        return {
-            "content": response_message.content,
-            "reasoning": final_reasoning # ★ 取得した reasoning を返す
-        }
+        print("--- Response Sent ---")
+        return response_data
 
-    except AuthenticationError:
+    # --- エラーハンドリング (変更なし) ---
+    except AuthenticationError as e:
+        print(f"エラー: Groq API 認証エラー: {e}")
         raise HTTPException(status_code=401, detail="Groq API 認証エラー: API キーを確認してください。")
-    except RateLimitError:
-        # time.sleep(5) # レート制限時に待機するのは必ずしも良い戦略ではない場合がある
-        raise HTTPException(status_code=429, detail="レート制限に達しました。少し待って再試行してください。")
-    except APIConnectionError:
+    except RateLimitError as e:
+        print(f"エラー: レート制限に達しました: {e}")
+        raise HTTPException(status_code=429, detail="Groq API のレート制限に達しました。しばらく待ってから再試行してください。")
+    except APIConnectionError as e:
+        print(f"エラー: Groq API 接続エラー: {e}")
         raise HTTPException(status_code=503, detail="Groq API 接続エラー: ネットワークを確認してください。")
     except BadRequestError as e:
-        # エラーレスポンスの本文を取得しようと試みる
         error_details = str(e)
-        try:
-            # Groqのエラーレスポンスは e.response.json() で詳細が取れることがある
-            error_body = e.response.json()
-            error_details = error_body.get('error', {}).get('message', str(e))
-        except Exception:
-            pass # JSONデコード失敗などは無視
-        print(f"Groq BadRequestError details: {error_details}") # 詳細を出力
+        error_response = getattr(e, 'response', None)
+        if error_response:
+            try:
+                error_body = error_response.json()
+                error_details = error_body.get('error', {}).get('message', str(e))
+            except Exception:
+                pass
+        print(f"エラー: Groq BadRequestError details: {error_details}")
         raise HTTPException(status_code=400, detail=f"リクエストエラー: {error_details}")
     except GroqError as e:
+        print(f"エラー: Groq API エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Groq API エラー: {str(e)}")
     except Exception as e:
-        # 予期せぬエラーの詳細もログに出力するとデバッグしやすい
-        import traceback
-        print(f"予期せぬエラーが発生しました: {type(e).__name__}")
-        print(traceback.format_exc()) # スタックトレースを出力
+        print(f"エラー: 予期せぬサーバーエラーが発生しました: {type(e).__name__}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"予期せぬサーバーエラーが発生しました。")
 
-# 起動確認用
+# --- ▼▼▼ /api/exit エンドポイントを修正 (BackgroundTasks を使用) ▼▼▼ ---
+def shutdown_server():
+    """サーバーをシャットダウンする関数 (バックグラウンドで実行)"""
+    print("Shutting down server process...")
+    # 応答が送信されるのを待つために少し遅延させる (任意)
+    time.sleep(0.5)
+    sys.exit(0) # プロセスを終了
+
+@app.post("/api/exit")
+async def request_exit(background_tasks: BackgroundTasks): # BackgroundTasks を引数に追加
+    """
+    フロントエンドからのリクエストを受けてサーバープロセスを終了するエンドポイント
+    応答を返した後にバックグラウンドでシャットダウンを実行する
+    """
+    print("Received exit request from frontend. Scheduling shutdown...")
+    # シャットダウン処理をバックグラウンドタスクとして登録
+    background_tasks.add_task(shutdown_server)
+    # 正常な応答 (JSON) を返し、CORSヘッダーが付与されるようにする
+    return {"message": "Shutdown initiated"}
+# --- ▲▲▲ /api/exit エンドポイントを修正 (BackgroundTasks を使用) ▲▲▲ ---
+
+
+# --- Root Endpoint (for health check) ---
 @app.get("/")
 async def root():
-    return {"message": "FastAPI バックエンド稼働中"}
+    """ Health check endpoint """
+    return {"message": "FastAPI backend for Groq Chat is running."}
 
+# --- Server Execution ---
 if __name__ == "__main__":
-    print("バックエンドサーバーを http://localhost:8002 で起動します...")
-    # リロード有効で起動すると開発中に便利 (uvicorn main:app --reload --port 8002)
-    # ここでは通常の起動
-    uvicorn.run(app, host="localhost", port=8002)
-    # uvicorn.run が終了するまで下の行は実行されない
-    # print("バックエンドサーバーがポート8002で起動しました") # この行は通常表示されない
+    port = int(os.getenv("PORT", 8000))
+    print(f"バックエンドサーバーを http://localhost:{port} で起動します...")
+    # 開発中は reload=True が便利
+    # host="0.0.0.0" は、コンテナ環境や他のマシンからのアクセスを許可する場合に必要
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+

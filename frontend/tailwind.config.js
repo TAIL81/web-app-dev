@@ -8,6 +8,16 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // フォントファミリー設定
+      fontFamily: {
+        'reasoning': [
+          '"Noto Sans"',         // 英語などラテン文字
+          '"Noto Sans SC"',      // 簡体字中国語
+          '"Noto Sans TC"',      // 繁体字中国語
+          '"Noto Sans JP"',      // 日本語
+          'sans-serif'           // フォールバック
+        ],
+      },
       // ダークモード用カラーパレット
       colors: {
         dark: {

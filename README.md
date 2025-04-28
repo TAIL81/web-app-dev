@@ -1,18 +1,22 @@
 # 日本語チャットボットアプリケーション
 
+このアプリケーションは、Groq API の `compound-beta-mini` モデルを使用したチャットボットです。高速な応答と、Web検索やコード実行といった Agentic Tooling 機能を活用できます。
+
 ## 技術スタック
 - React 18
 - Tailwind CSS (カスタム設定あり)
 - Lucide React アイコン
 - React Markdown
+- react-textarea-autosize
 
 ## 開発環境要件
 
 ### 必須環境
 - OS: Windows 11 (推奨)
 - Node.js: 20.17.0 以上
-- npm: 11.3.0 以上  
+- npm: 11.3.0 以上
 - Python: 3.11.9 以上
+- LM Studio (プロンプト拡張機能を使用する場合)
 
 ### バックエンド依存関係
 ```bash
@@ -37,18 +41,17 @@ npm install
 
 3. バックエンドサーバー起動:
 ```bash
-cd ../backend
-python main.py
+python backend/main.py
 ```
 
 4. フロントエンド起動:
 ```bash
-npm start
+cd frontend && npm start
 ```
 
 ## 主要機能
 - 日本語自然な会話インターフェース
-- AIの思考プロセス可視化
+- AIの思考プロセス可視化（Agentic Toolingによるツール利用判断を含む）
 - レスポンシブデザイン
 - エラーハンドリング
 
