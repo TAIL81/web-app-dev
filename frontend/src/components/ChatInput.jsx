@@ -1,10 +1,12 @@
-import React from 'react';
+// ChatInput.jsx の修正案 (インポート部分)
+import React, { useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Sparkles } from 'lucide-react';
+// lucide-react から必要なアイコンを一度にインポート
+import { Send, Sparkles, Paperclip } from 'lucide-react';
 
-import React, { useRef } from 'react'; // useRef をインポート
-import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Sparkles, Paperclip } from 'lucide-react'; // Paperclip アイコンをインポート
+// 不要になった重複インポートは削除する
+
+// ... (コンポーネントの残りの部分)
 
 const ChatInput = ({
   input,
@@ -12,9 +14,8 @@ const ChatInput = ({
   isLoading,
   isExpanding,
   handleSend,
-  handleKeyPress,
   handleExpandPrompt,
-  handleFileSelect // ★ ファイル選択ハンドラを追加
+  handleFileSelect
 }) => {
   // ★ ファイル入力要素への参照を作成
   const fileInputRef = useRef(null);
@@ -57,11 +58,24 @@ const ChatInput = ({
         </button>
 
         {/* TextareaAutosize コンポーネントを使用 */}
+        {/* TextareaAutosize コンポーネントを使用 */}
         <TextareaAutosize
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyPress={handleKeyPress} // Enterキーでの送信処理
-          placeholder="メッセージを入力... (Shift+Enterで改行)"
+          // onKeyPress を onKeyDown に変更し、キー判定ロジックを実装
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+              // Enterキーのみ: プロンプト拡張
+              e.preventDefault();
+              handleExpandPrompt();
+            } else if (e.key === 'Enter' && e.ctrlKey) {
+              // Ctrl + Enterキー: メッセージ送信
+              e.preventDefault();
+              handleSend();
+            }
+            // Shift + Enter の場合はデフォルトの改行を許可
+          }}
+          placeholder="メッセージを入力... (Enterでプロンプト拡張, Ctrl+Enterで送信, Shift+Enterで改行)" // プレースホルダーを更新
           className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-hidden"
           style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}
           disabled={isLoading || isExpanding} // 拡張中も無効化
@@ -71,8 +85,10 @@ const ChatInput = ({
         />
 
         {/* --- ▼▼▼ プロンプト拡張ボタン (isExpanding 状態を反映) ▼▼▼ --- */}
+        {/* ボタンは残すが、キーボードショートカットがメインになる */}
         <button
           id="expand-prompt-button"
+          // onClick は残しておくが、キーボード操作が推奨される
           onClick={handleExpandPrompt}
           aria-label="プロンプトを拡張"
           title="入力内容を基にプロンプトを拡張"

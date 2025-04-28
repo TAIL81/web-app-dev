@@ -17,10 +17,10 @@ function App() {
     setError, // setError を追加
     messagesEndRef,
     handleSend,
-    handleKeyPress,
     handleClearChat,
     isExpanding,
-    setIsExpanding
+    setIsExpanding,
+    handleFileSelect // ← useChat から取得
   } = useChat();
 
   // --- ダークモード関連 ---
@@ -67,45 +67,34 @@ function App() {
       // console.log("送信するメタプロンプト:", metaPrompt);
       // ---
 
-      const response = await fetch(process.env.REACT_APP_LM_STUDIO_API_URL, {
+      // バックエンドのGroq APIエンドポイントを呼び出すように変更
+      const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [{ role: 'user', content: metaPrompt }],
+          model_name: "llama-3.1-8b-instant", // プロンプト拡張用にモデルを指定
           temperature: 0.5, // 少し創造性を抑える
-          max_tokens: 150,  // 拡張後の長さを調整
-          stream: false
+          max_completion_tokens: 150  // 拡張後の長さを調整
         })
       });
 
       if (!response.ok) {
-        // エラーレスポンスの形式に合わせて調整
-        let errorDetail = `APIエラー (${response.status})`;
-        let errorBody = null;
+        let errorDetail = response.statusText;
         try {
-          // 生のエラーボディを取得
-          errorBody = await response.text();
-          try {
-            // JSONとしてパースを試みる
-            const errorData = JSON.parse(errorBody);
-            // LM Studioのエラー形式に合わせてキーを調整する必要があるかもしれません
-            errorDetail = errorData.error?.message || errorData.detail || JSON.stringify(errorData) || errorDetail;
-          } catch (jsonError) {
-            console.error("Error parsing error response as JSON:", jsonError);
-            // JSONパースに失敗した場合、生のエラーボディをログに出力
-            console.error("Raw error response body:", errorBody);
-          }
-        } catch (textError) {
-           console.error("Error reading error response as text:", textError);
+          const errorData = await response.json();
+          errorDetail = errorData.detail || errorDetail;
+        } catch (jsonError) {
+          console.error("Error parsing error response:", jsonError);
         }
         throw new Error(`API エラー (${response.status}): ${errorDetail}`);
       }
 
       const data = await response.json();
 
-      // --- レスポンス処理の修正 (ラベル変更に対応) ---
-      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        const expandedPrompt = data.choices[0].message.content
+      // Groq APIからのレスポンス形式に合わせて修正
+      if (data && data.content !== undefined) {
+        const expandedPrompt = data.content
           .replace(/^書き換え後の文:\s*/i, '') // ラベルを '書き換え後の文:' に変更
           .trim();
 
@@ -113,14 +102,12 @@ function App() {
           setInput(expandedPrompt);
         } else {
           console.warn("拡張後のプロンプトが空です。");
-          // 必要であればユーザーに通知
           setError("プロンプトの拡張に失敗しました（結果が空）。");
         }
       } else {
         console.error("API応答の形式が不正です:", data);
         throw new Error("プロンプト拡張に失敗しました (不正な応答形式)。");
       }
-      // --- レスポンス処理ここまで ---
 
     } catch (err) {
       console.error("プロンプト拡張エラー:", err);
@@ -203,8 +190,8 @@ function App() {
         isLoading={isLoading}
         isExpanding={isExpanding}
         handleSend={handleSend}
-        handleKeyPress={handleKeyPress}
         handleExpandPrompt={handleExpandPrompt}
+        handleFileSelect={handleFileSelect} // ← これを追加
       />
     </div>
   );
