@@ -1,6 +1,6 @@
 {
   "api_key": "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR",
-  "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
+  "model_name": "compound-beta-mini",
   "temperature": 0.6,
   "system_prompt": "1. Let's think step by step. 2. Respond in fluent Japanese.",
   "max_completion_tokens": 8192,
