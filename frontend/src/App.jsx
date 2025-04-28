@@ -27,7 +27,6 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false); // 初期値はライトモード
   const toggleDarkMode = () => {
     setIsDarkMode(prevMode => !prevMode);
-    setIsDarkMode(prevMode => !prevMode);
   };
   useEffect(() => {
     if (isDarkMode) {
@@ -44,75 +43,52 @@ function App() {
   // handleSend, handleKeyPress, handleClearChat は useChat フックから取得
 
   // --- ▼▼▼ プロンプト拡張ボタンのハンドラー (修正版) ▼▼▼ ---
+  // App.jsx の handleExpandPrompt 関数の修正案
   const handleExpandPrompt = async () => {
-    const currentInput = input.trim();
-    if (!currentInput || isLoading || isExpanding) return;
-
+    if (!input.trim() || isLoading || isExpanding) return;
+  
     setIsExpanding(true);
-    setError(null); // エラー状態をリセット
-
+    setError(null);
     try {
-      // --- メタプロンプトの指示内容を修正 ---
-      const metaPrompt = `
-以下のユーザー入力を、より明確で詳細な一つの質問文または指示文に書き換えてください。
-元の質問や指示の意図は変えずに、より多くの情報が得られるような形にしてください。
-応答は書き換えた文のみとし、追加の説明や質問は含めないでください。
-
-ユーザー入力: ${currentInput}
-
-書き換え後の文:
-      `.trim();
-      // --- メタプロンプトここまで ---
-
-      // --- デバッグ用にコンソールに出力 (任意) ---
-      // console.log("送信するメタプロンプト:", metaPrompt);
-      // ---
-
-      // バックエンドのGroq APIエンドポイントを呼び出すように変更
-      const response = await fetch('http://localhost:8000/api/chat', {
+      // APIエンドポイント (環境変数から取得推奨)
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/chat';
+  
+      const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: metaPrompt }],
-          model_name: "llama-3.1-8b-instant", // プロンプト拡張用にモデルを指定
-          temperature: 0.5, // 少し創造性を抑える
-          max_completion_tokens: 150  // 拡張後の長さを調整
-        })
+          // ★ バックエンドに送信するメッセージ形式を合わせる
+          //    バックエンドが最後のユーザーメッセージのみを使う場合でも、
+          //    一貫性のため messages 配列で送るのが良い場合もある
+          messages: [{ role: 'user', content: input }],
+          purpose: 'expand_prompt', // ★ プロンプト拡張リクエストであることを示す
+          // stream: false // ストリーミングしないことを明示する場合
+        }),
       });
-
+  
       if (!response.ok) {
-        let errorDetail = response.statusText;
-        try {
-          const errorData = await response.json();
-          errorDetail = errorData.detail || errorDetail;
-        } catch (jsonError) {
-          console.error("Error parsing error response:", jsonError);
-        }
-        throw new Error(`API エラー (${response.status}): ${errorDetail}`);
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-
+  
       const data = await response.json();
-
-      // Groq APIからのレスポンス形式に合わせて修正
-      if (data && data.content !== undefined) {
-        const expandedPrompt = data.content
-          .replace(/^書き換え後の文:\s*/i, '') // ラベルを '書き換え後の文:' に変更
-          .trim();
-
-        if (expandedPrompt) {
-          setInput(expandedPrompt);
-        } else {
-          console.warn("拡張後のプロンプトが空です。");
-          setError("プロンプトの拡張に失敗しました（結果が空）。");
-        }
+  
+      // ★ バックエンド (main.py) が返す ChatResponse モデルの content を取得
+      const expandedPrompt = data.content || '';
+  
+      if (expandedPrompt) {
+        setInput(expandedPrompt); // 拡張されたプロンプトを入力欄に設定
       } else {
-        console.error("API応答の形式が不正です:", data);
-        throw new Error("プロンプト拡張に失敗しました (不正な応答形式)。");
+        console.warn("Received empty expanded prompt from backend:", data);
+        // エラーにするか、ユーザーに通知するか検討
+        // setError('プロンプトの拡張に失敗しました。応答が空です。');
       }
-
+  
     } catch (err) {
-      console.error("プロンプト拡張エラー:", err);
-      setError(err.message || "不明なエラーが発生しました。"); // エラーメッセージが空の場合のフォールバック
+      console.error("Error expanding prompt:", err);
+      setError(err instanceof Error ? err.message : 'プロンプトの拡張中に不明なエラーが発生しました。');
     } finally {
       setIsExpanding(false);
     }

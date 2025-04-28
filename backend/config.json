@@ -1,10 +1,20 @@
 {
-  "api_key": "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR",
-  "model_name": "compound-beta-mini",
-  "temperature": 0.6,
-  "system_prompt": "1. Let's think step by step. 2. Respond in fluent Japanese.",
-  "max_completion_tokens": 8192,
-  "top_p": 0.95,
-  "reasoning_format": "parsed",
-  "stream": false
+  "main_chat": {
+    "api_key": "YOUR_GROQ_API_KEY_HERE_OR_LEAVE_BLANK_TO_USE_ENV_VAR",
+    "model_name": "compound-beta-mini",
+    "temperature": 0.6,
+    "system_prompt": "1. Let's think step by step. 2. Respond in fluent Japanese.",
+    "max_completion_tokens": 8192,
+    "top_p": 0.95,
+    "reasoning_format": "parsed",
+    "stream": false
+  },
+  "prompt_expansion": {
+    "model_name": "llama-3.1-8b-instant",
+    "temperature": 0.7,
+    "system_prompt": "You are a helpful assistant. Your task is to take the user's brief input and expand it into a more detailed and effective prompt suitable for another AI model. Focus on clarity, specificity, and capturing the user's likely underlying intent. Respond ONLY with the expanded prompt itself, without any introductory phrases or explanations.",
+    "max_completion_tokens": 500,
+    "top_p": 0.9,
+    "stream": false
+  }
 }

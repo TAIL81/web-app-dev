@@ -116,7 +116,13 @@ const useChat = () => {
       const response = await fetch(`${backendUrl}/api/chat`, { // バックエンドのチャットAPIエンドポイント
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messagesForApi }), // メッセージ履歴をJSON形式で送信
+        // ▼▼▼ body に purpose を追加 ▼▼▼
+        body: JSON.stringify({
+          messages: messagesForApi, // メッセージ履歴
+          purpose: 'main_chat'      // ★ メインチャットリクエストであることを明示
+          // model_name, temperature など、UIから上書きしたい場合はここに追加
+        }),
+        // ▲▲▲ body に purpose を追加 ▲▲▲
       });
 
       // --- レスポンス処理 ---
