@@ -27,6 +27,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false); // 初期値はライトモード
   const toggleDarkMode = () => {
     setIsDarkMode(prevMode => !prevMode);
+    setIsDarkMode(prevMode => !prevMode);
   };
   useEffect(() => {
     if (isDarkMode) {
