@@ -54,8 +54,6 @@ class ChatRequest(BaseModel):
 REASONING_SUPPORTED_MODELS = [
     "qwen-qwq-32b",
     "deepseek-r1-distill-llama-70b",
-    "deepseek-r1-distill-qwen-32b",
-    # "compound-beta-mini" # ユーザーの指示により追加
 ]
 
 @app.post("/api/chat")
