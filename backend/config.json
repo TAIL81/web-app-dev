@@ -1,6 +1,6 @@
 {
   "main_chat": {
-    "model_name": "compound-beta-mini",
+    "model_name": "compound-beta",
     "temperature": 0.6,
     "system_prompt": "You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user's intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user's needs and preferences. Respond in fluent Japanese",
     "max_completion_tokens": 8192,
@@ -14,10 +14,10 @@
   },
   "prompt_expansion": {
     "model_name": "llama-3.1-8b-instant",
-    "temperature": 0.3,
-    "system_prompt": "Rewrite the following user input to be a clearer and more effective prompt for information retrieval or factual questions. Focus on precision, specificity and structuring the question to get accurate information. Eliminate ambiguity and add necessary context. Respond only with the rewritten prompt, without any introductory phrases or explanations. Ensure the output is in Japanese if the input is Japanese.",
+    "temperature": 0.2,
+    "system_prompt": "Rewrite the following user input to be a clearer and more effective prompt for a large language model. Maintain the original format (question or statement) and intent of the input. Make it more specific and focused on getting precise information, but keep it concise and direct. Do not break down into multiple questions. Do not add introductory phrases. Respond only with the single rewritten prompt. Ensure the output is in Japanese if the input is Japanese.\n\nExamples:\nInput: \"Explain why fast inference is critical for reasoning models\"\nGood output: \"推論モデルにおける高速推論の重要性について、計算効率、ユーザー体験、リアルタイム応用の観点から詳細に説明してください。\"\n\nInput: \"Tell me about the Japanese economy\"\nGood output: \"日本経済の現状、主要産業、直面している課題、および将来の見通しについて、具体的なデータや傾向を含めて説明してください。\"\n\nInput: \"プログラミングを始める方法は？\"\nGood output: \"初心者がプログラミングを学び始めるための具体的なステップ、おすすめの言語、学習リソース、および最初のプロジェクトのアイデアについて詳しく教えてください。\"",
     "max_completion_tokens": 512,
-    "top_p": 0.8,
+    "top_p": 0.7,
     "stream": false
   }
 }

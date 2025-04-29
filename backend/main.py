@@ -3,6 +3,7 @@ import os
 import json
 import time
 import sys
+import signal # signal モジュールをインポート
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq, GroqError, AuthenticationError, RateLimitError, APIConnectionError, BadRequestError
@@ -315,12 +316,26 @@ async def chat(request: ChatRequest):
         print(traceback.format_exc()) # エラーログは残す
         raise HTTPException(status_code=500, detail=f"予期せぬサーバーエラーが発生しました。")
 
-# --- /api/exit エンドポイント (変更なし) ---
+# --- /api/exit エンドポイント (修正) ---
 def shutdown_server():
-    """サーバーをシャットダウンする関数 (バックグラウンドで実行)"""
-    # print("Shutting down server process...") # コメントアウト
+    """サーバープロセスに終了シグナル (SIGTERM) を送信する関数 (バックグラウンドで実行)"""
+    print("サーバープロセスにシャットダウンシグナルを送信しています...")
+    # レスポンスが返るのを少し待つ (任意ですが、念のため)
     time.sleep(0.5)
-    sys.exit(0)
+    pid = os.getpid() # 現在のプロセスのIDを取得
+    try:
+        # SIGTERM シグナルを送信して、プロセスに正常終了を促す
+        os.kill(pid, signal.SIGTERM)
+        print(f"プロセス {pid} に SIGTERM シグナルを送信しました。")
+    except OSError as e:
+        print(f"エラー: プロセス {pid} へのシグナル送信に失敗しました: {e}")
+        # シグナル送信に失敗した場合の代替処理 (例: エラーログ強化)
+        # ここで sys.exit() を呼ぶこともできますが、根本的な解決にはなりません。
+        # print("フォールバックとして sys.exit(1) を試みます...")
+        # sys.exit(1) # エラーを示す終了コード
+    except Exception as e:
+        print(f"シャットダウン処理中に予期せぬエラーが発生しました: {e}")
+        # sys.exit(1)
 
 @app.post("/api/exit")
 async def request_exit(background_tasks: BackgroundTasks):
@@ -328,9 +343,11 @@ async def request_exit(background_tasks: BackgroundTasks):
     フロントエンドからのリクエストを受けてサーバープロセスを終了するエンドポイント
     応答を返した後にバックグラウンドでシャットダウンを実行する
     """
-    # print("Received exit request from frontend. Scheduling shutdown...") # コメントアウト
+    print("フロントエンドから終了リクエストを受信しました。シャットダウンをスケジュールします...")
+    # 修正された shutdown_server 関数をバックグラウンドタスクとして追加
     background_tasks.add_task(shutdown_server)
-    return {"message": "Shutdown initiated"}
+    # クライアントにはシャットダウンが開始されたことを伝える
+    return {"message": "サーバーのシャットダウンが開始されました。"}
 
 # --- Root Endpoint (変更なし) ---
 @app.get("/")
