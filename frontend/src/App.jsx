@@ -1,6 +1,6 @@
 /*
  * frontend/src/App.jsx
- * 2.2. モデル選択UIの改善: ツールチップ追加、ローディングテキスト明確化
+ * 2.4. レスポンシブデザインの微調整: モデル選択ドロップダウン最小幅
  */
 import React, { useEffect } from 'react';
 import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2 } from 'lucide-react';
@@ -107,26 +107,24 @@ function App() {
             <label htmlFor="model-select" className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
               モデル:
             </label>
-            {/* --- ▼ モデル読み込み中の表示を変更 ▼ --- */}
+            {/* --- ▼ モデル読み込み中表示の最小幅をレスポンシブに変更 ▼ --- */}
             {isModelsLoading ? (
-              // スピナーとテキストを横並びに表示
-              <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400" style={{ minWidth: '220px' }}>
+              // インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加
+              <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400 min-w-[180px] sm:min-w-[220px]">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                {/* テキストを追加 */}
                 <span className="text-sm">モデルを読み込み中...</span>
               </div>
             ) : (
-            /* --- ▲ モデル読み込み中の表示を変更 ▲ --- */
+            /* --- ▲ モデル読み込み中表示の最小幅をレスポンシブに変更 ▲ --- */
               <select
                 id="model-select"
                 value={selectedModel}
                 onChange={handleModelChange}
                 disabled={isLoading || isExpanding || isModelsLoading || availableModels.length === 0}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50"
-                style={{ minWidth: '220px' }}
-                // --- ▼ ツールチップを追加 ▼ ---
+                // --- ▼ インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加 ▼ ---
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
+                // --- ▲ インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加 ▲ ---
                 title="バックエンドで設定可能なモデルを選択"
-                // --- ▲ ツールチップを追加 ▲ ---
               >
                 {availableModels.length === 0 && !isModelsLoading ? (
                    <option value="" disabled>利用可能なモデルなし</option>
@@ -182,9 +180,11 @@ function App() {
 
         {/* エラー表示 (変更なし) */}
         {error && (
-          <div className="flex justify-center items-center gap-2 p-3 bg-red-100 dark:bg-red-900 dark:bg-opacity-50 rounded-lg mb-4 shadow">
+          <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-lg mb-4 shadow">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
+            <p className="text-red-600 dark:text-red-400 text-sm font-medium">
+              エラー: {error}
+            </p>
           </div>
         )}
         <div ref={messagesEndRef} />
