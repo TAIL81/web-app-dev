@@ -1,6 +1,6 @@
 /*
  * frontend/src/components/Message.jsx
- * 2.4. レスポンシブデザインの微調整: メッセージコンテナ幅拡張
+ * 2.6. インタラクティブなフィードバック: トランジションとホバー効果を追加
  */
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -19,12 +19,10 @@ const Message = ({ message }) => {
 
   return (
     <div>
-      {/* ユーザーメッセージ */}
+      {/* ユーザーメッセージ (変更なし) */}
       {message.role === 'user' && (
         <div className="flex justify-end items-start mb-4 group">
-          {/* --- ▼ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▼ --- */}
           <div className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow bg-blue-100 dark:bg-blue-900 dark:bg-opacity-80 mr-2 break-words">
-          {/* --- ▲ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▲ --- */}
             <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p>
           </div>
           <User className="w-8 h-8 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
@@ -38,23 +36,27 @@ const Message = ({ message }) => {
           {message.reasoning && message.reasoning !== "（Reasoningなし）" && (
             <div className="flex justify-start items-start mb-2 group">
               <BrainCircuit className="w-6 h-6 text-gray-400 dark:text-gray-500 mr-2 flex-shrink-0 mt-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-              {/* --- ▼ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▼ --- */}
               <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-gray-200 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 break-words">
-              {/* --- ▲ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▲ --- */}
                 <button
                   onClick={() => setIsReasoningOpen(!isReasoningOpen)}
                   className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none w-full text-left mb-1"
-                  aria-expanded={isReasoningOpen} // アクセシビリティ属性
+                  aria-expanded={isReasoningOpen}
                 >
                   {isReasoningOpen ? <ChevronUp size={16} className="mr-1 flex-shrink-0" /> : <ChevronDown size={16} className="mr-1 flex-shrink-0" />}
                   <span className="font-semibold">思考プロセス詳細</span>
                   <span className="ml-auto text-gray-400 dark:text-gray-500">({isReasoningOpen ? '閉じる' : '表示'})</span>
                 </button>
-                {isReasoningOpen && (
-                  <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1">
+                {/* --- ▼ 思考プロセス詳細表示にトランジションを追加 ▼ --- */}
+                <div
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+                    isReasoningOpen ? 'max-h-96' : 'max-h-0' // 開閉状態で高さを変更 (96 = 24rem, 必要に応じて調整)
+                  }`}
+                >
+                  <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
                     {message.reasoning}
                   </pre>
-                )}
+                </div>
+                {/* --- ▲ 思考プロセス詳細表示にトランジションを追加 ▲ --- */}
               </div>
             </div>
           )}
@@ -63,9 +65,9 @@ const Message = ({ message }) => {
           {message.tool_calls && message.tool_calls.length > 0 && (
             <div className="flex justify-start items-start mb-2 group">
               <BrainCircuit className="w-6 h-6 text-yellow-500 dark:text-yellow-400 mr-2 flex-shrink-0 mt-1 group-hover:text-yellow-600 dark:group-hover:text-yellow-300 transition-colors" />
-              {/* --- ▼ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▼ --- */}
-              <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-yellow-100 dark:bg-yellow-900 text-xs text-yellow-800 dark:text-yellow-200 break-words">
-              {/* --- ▲ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▲ --- */}
+              {/* --- ▼ ツール呼び出し表示にホバー効果とトランジションを追加 ▼ --- */}
+              <div className={`w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-yellow-100 dark:bg-yellow-900/70 text-xs text-yellow-800 dark:text-yellow-200 break-words transition-colors duration-150 hover:bg-yellow-200 dark:hover:bg-yellow-800/80`}>
+              {/* --- ▲ ツール呼び出し表示にホバー効果とトランジションを追加 ▲ --- */}
                 <p className="font-semibold mb-1">ツール呼び出し:</p>
                 {message.tool_calls.map((toolCall, index) => (
                   <div key={index} className="mb-1 last:mb-0">
@@ -78,12 +80,10 @@ const Message = ({ message }) => {
             </div>
           )}
 
-          {/* AI 回答本文 */}
+          {/* AI 回答本文 (変更なし) */}
           <div className="flex justify-start items-start group">
             <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 mr-2 flex-shrink-0 mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
-            {/* --- ▼ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▼ --- */}
             <div className={`prose prose-sm max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow ${aiMessageBgColor} dark:prose-invert break-words w-full`}>
-            {/* --- ▲ xlブレークポイントで max-width を拡張 (xl:max-w-3xl) ▲ --- */}
               {message.content ? (
                 <ReactMarkdown components={{ p: ({node, ...props}) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} /> }}>
                   {message.content}

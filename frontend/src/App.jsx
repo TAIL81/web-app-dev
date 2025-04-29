@@ -1,6 +1,6 @@
 /*
  * frontend/src/App.jsx
- * 2.4. レスポンシブデザインの微調整: モデル選択ドロップダウン最小幅
+ * 2.5. アクセシビリティ向上: ローディング表示に aria-live 追加
  */
 import React, { useEffect } from 'react';
 import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2 } from 'lucide-react';
@@ -78,7 +78,7 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
-      {/* ヘッダー */}
+      {/* ヘッダー (変更なし) */}
       <header className="bg-white dark:bg-dark-card p-4 shadow-md dark:shadow-lg sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
         {/* タイトルとバッジ (変更なし) */}
         <div className="flex-shrink-0">
@@ -100,30 +100,25 @@ function App() {
           </div>
         </div>
 
-        {/* モデル選択とボタン類 */}
+        {/* モデル選択とボタン類 (変更なし) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* モデル選択 */}
+          {/* モデル選択 (変更なし) */}
           <div className="flex items-center">
             <label htmlFor="model-select" className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
               モデル:
             </label>
-            {/* --- ▼ モデル読み込み中表示の最小幅をレスポンシブに変更 ▼ --- */}
             {isModelsLoading ? (
-              // インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加
               <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400 min-w-[180px] sm:min-w-[220px]">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="text-sm">モデルを読み込み中...</span>
               </div>
             ) : (
-            /* --- ▲ モデル読み込み中表示の最小幅をレスポンシブに変更 ▲ --- */
               <select
                 id="model-select"
                 value={selectedModel}
                 onChange={handleModelChange}
                 disabled={isLoading || isExpanding || isModelsLoading || availableModels.length === 0}
-                // --- ▼ インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加 ▼ ---
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
-                // --- ▲ インラインスタイルを削除し、Tailwindクラス min-w-[180px] sm:min-w-[220px] を追加 ▲ ---
                 title="バックエンドで設定可能なモデルを選択"
               >
                 {availableModels.length === 0 && !isModelsLoading ? (
@@ -162,21 +157,27 @@ function App() {
         </div>
       </header>
 
-      {/* メインコンテンツ (チャット履歴) (変更なし) */}
+      {/* メインコンテンツ (チャット履歴) */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {messages.map((msg, index) => (
           <Message key={index} message={msg} />
         ))}
 
-        {/* メッセージ送受信中のローディング表示 (変更なし) */}
+        {/* --- ▼ メッセージ送受信中のローディング表示に aria-live="polite" を追加 ▼ --- */}
         {isLoading && !isExpanding && (
-          <div className="flex justify-center items-center py-4">
+          // この div がローディング表示全体のコンテナ
+          <div
+            className="flex justify-center items-center py-4"
+            aria-live="polite" // スクリーンリーダーに状態変化を通知 (丁寧な方法で)
+            aria-atomic="true" // 変更があった場合、要素全体を読み上げるように指示 (オプションだが推奨)
+          >
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {/* 装飾的なアイコンは読み上げから除外 */}
               <span>応答を生成中...</span>
             </div>
           </div>
         )}
+        {/* --- ▲ メッセージ送受信中のローディング表示に aria-live="polite" を追加 ▲ --- */}
 
         {/* エラー表示 (変更なし) */}
         {error && (
