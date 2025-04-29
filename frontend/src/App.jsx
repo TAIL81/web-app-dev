@@ -1,9 +1,9 @@
 /*
  * frontend/src/App.jsx
- * ローディング表示をスピナーアイコンとテキストに変更
+ * 2.2. モデル選択UIの改善: ツールチップ追加、ローディングテキスト明確化
  */
 import React, { useEffect } from 'react';
-import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2 } from 'lucide-react'; // Loader2 は既にインポート済み
+import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2 } from 'lucide-react';
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
@@ -78,9 +78,9 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
-      {/* ヘッダー (変更なし) */}
+      {/* ヘッダー */}
       <header className="bg-white dark:bg-dark-card p-4 shadow-md dark:shadow-lg sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
-        {/* タイトルとバッジ */}
+        {/* タイトルとバッジ (変更なし) */}
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-dark-text">Groq チャットボット</h1>
           <div className="flex items-center gap-1.5">
@@ -107,11 +107,16 @@ function App() {
             <label htmlFor="model-select" className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
               モデル:
             </label>
+            {/* --- ▼ モデル読み込み中の表示を変更 ▼ --- */}
             {isModelsLoading ? (
-              <div className="flex items-center justify-center p-2" style={{ minWidth: '220px' }}>
-                <Loader2 className="w-5 h-5 animate-spin text-gray-500 dark:text-gray-400" />
+              // スピナーとテキストを横並びに表示
+              <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400" style={{ minWidth: '220px' }}>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {/* テキストを追加 */}
+                <span className="text-sm">モデルを読み込み中...</span>
               </div>
             ) : (
+            /* --- ▲ モデル読み込み中の表示を変更 ▲ --- */
               <select
                 id="model-select"
                 value={selectedModel}
@@ -119,6 +124,9 @@ function App() {
                 disabled={isLoading || isExpanding || isModelsLoading || availableModels.length === 0}
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50"
                 style={{ minWidth: '220px' }}
+                // --- ▼ ツールチップを追加 ▼ ---
+                title="バックエンドで設定可能なモデルを選択"
+                // --- ▲ ツールチップを追加 ▲ ---
               >
                 {availableModels.length === 0 && !isModelsLoading ? (
                    <option value="" disabled>利用可能なモデルなし</option>
@@ -133,7 +141,7 @@ function App() {
             )}
           </div>
 
-          {/* クリアボタン */}
+          {/* クリアボタン (変更なし) */}
           <button
             onClick={handleClearChat}
             aria-label="チャット履歴をクリア"
@@ -144,7 +152,7 @@ function App() {
             <Trash2 className="w-5 h-5 text-red-500 dark:text-red-400" />
           </button>
 
-          {/* ダークモード切り替えボタン */}
+          {/* ダークモード切り替えボタン (変更なし) */}
           <button
             onClick={toggleDarkMode}
             aria-label={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
@@ -156,27 +164,21 @@ function App() {
         </div>
       </header>
 
-      {/* メインコンテンツ (チャット履歴) */}
+      {/* メインコンテンツ (チャット履歴) (変更なし) */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {messages.map((msg, index) => (
           <Message key={index} message={msg} />
         ))}
 
-        {/* --- ▼ メッセージ送受信中のローディング表示変更 ▼ --- */}
-        {/* isLoading が true かつ isExpanding が false の場合に表示 */}
+        {/* メッセージ送受信中のローディング表示 (変更なし) */}
         {isLoading && !isExpanding && (
-          // 中央揃えのコンテナに変更
           <div className="flex justify-center items-center py-4">
-            {/* スピナーアイコンとテキストを横並びに配置 */}
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              {/* Loader2 アイコンに回転アニメーションを追加 */}
               <Loader2 className="h-5 w-5 animate-spin" />
-              {/* テキストを「応答を生成中...」に変更 */}
               <span>応答を生成中...</span>
             </div>
           </div>
         )}
-        {/* --- ▲ メッセージ送受信中のローディング表示変更 ▲ --- */}
 
         {/* エラー表示 (変更なし) */}
         {error && (
