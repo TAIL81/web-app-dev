@@ -1,13 +1,21 @@
 {
   "main_chat": {
-    "model_name": "compound-beta",
+    "model_name": "meta-llama/llama-4-scout-17b-16e-instruct",
     "temperature": 0.6,
-    "system_prompt": "You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user's intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user's needs and preferences. Respond in fluent Japanese",
     "max_completion_tokens": 8192,
+    "system_prompt": "You are a highly capable, thoughtful, and precise assistant. Your goal is to deeply understand the user's intent, ask clarifying questions when needed, think step-by-step through complex problems, provide clear and accurate answers, and proactively anticipate helpful follow-up information. Always prioritize being truthful, nuanced, insightful, and efficient, tailoring your responses specifically to the user's needs and preferences. Respond in fluent Japanese",
     "top_p": 0.95,
-    "reasoning_format": "parsed",
     "stream": false,
     "reasoning_supported_models": [
+      "qwen-qwq-32b",
+      "deepseek-r1-distill-llama-70b"
+    ],
+    "reasoning_format": "parsed",
+    "available_model_ids": [
+      "compound-beta",
+      "compound-beta-mini",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
       "qwen-qwq-32b",
       "deepseek-r1-distill-llama-70b"
     ]

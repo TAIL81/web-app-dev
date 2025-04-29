@@ -161,6 +161,10 @@ class ChatResponse(BaseModel):
     reasoning: Optional[Any] = None
     tool_calls: Optional[List[ToolCall]] = None
 
+# ★ モデルリスト取得用のレスポンスモデルを追加
+class ModelListResponse(BaseModel):
+    models: List[str]
+
 # --- API Endpoints ---
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -316,38 +320,34 @@ async def chat(request: ChatRequest):
         print(traceback.format_exc()) # エラーログは残す
         raise HTTPException(status_code=500, detail=f"予期せぬサーバーエラーが発生しました。")
 
-# --- /api/exit エンドポイント (修正) ---
-def shutdown_server():
-    """サーバープロセスに終了シグナル (SIGTERM) を送信する関数 (バックグラウンドで実行)"""
-    print("サーバープロセスにシャットダウンシグナルを送信しています...")
-    # レスポンスが返るのを少し待つ (任意ですが、念のため)
-    time.sleep(0.5)
-    pid = os.getpid() # 現在のプロセスのIDを取得
+# ★ 新しいエンドポイント: 利用可能なモデルリストを取得
+@app.get("/api/models", response_model=ModelListResponse)
+async def get_available_models():
+    """
+    設定ファイルから利用可能なモデルIDのリストを返します。
+    """
+    global config # グローバル設定を参照
     try:
-        # SIGTERM シグナルを送信して、プロセスに正常終了を促す
-        os.kill(pid, signal.SIGTERM)
-        print(f"プロセス {pid} に SIGTERM シグナルを送信しました。")
-    except OSError as e:
-        print(f"エラー: プロセス {pid} へのシグナル送信に失敗しました: {e}")
-        # シグナル送信に失敗した場合の代替処理 (例: エラーログ強化)
-        # ここで sys.exit() を呼ぶこともできますが、根本的な解決にはなりません。
-        # print("フォールバックとして sys.exit(1) を試みます...")
-        # sys.exit(1) # エラーを示す終了コード
-    except Exception as e:
-        print(f"シャットダウン処理中に予期せぬエラーが発生しました: {e}")
-        # sys.exit(1)
+        # config.json の main_chat セクションから available_model_ids を取得
+        # 見つからない場合は空リストをデフォルトとする
+        model_ids = config.get("main_chat", {}).get("available_model_ids", [])
 
-@app.post("/api/exit")
-async def request_exit(background_tasks: BackgroundTasks):
-    """
-    フロントエンドからのリクエストを受けてサーバープロセスを終了するエンドポイント
-    応答を返した後にバックグラウンドでシャットダウンを実行する
-    """
-    print("フロントエンドから終了リクエストを受信しました。シャットダウンをスケジュールします...")
-    # 修正された shutdown_server 関数をバックグラウンドタスクとして追加
-    background_tasks.add_task(shutdown_server)
-    # クライアントにはシャットダウンが開始されたことを伝える
-    return {"message": "サーバーのシャットダウンが開始されました。"}
+        if not model_ids:
+             print("警告: 設定ファイルに利用可能なモデルIDリスト ('main_chat.available_model_ids') が見つからないか空です。")
+             # フォールバックとしてデフォルトモデルのみを含むリストを返すことも検討可能
+             default_model = config.get("main_chat", {}).get("model_name")
+             if default_model:
+                 model_ids = [default_model] # デフォルトモデルのみ返す
+
+        # print(f"利用可能なモデルリストを返します: {model_ids}") # デバッグ用ログ (コメントアウト推奨)
+        return ModelListResponse(models=model_ids)
+    except Exception as e:
+        print(f"エラー: 利用可能なモデルリストの取得中にエラーが発生しました: {e}")
+        print(traceback.format_exc())
+        # エラーが発生した場合、空リストを返すか、500エラーを返すか選択
+        # ここでは空リストを返すことで、フロントエンドが「利用可能なモデルなし」と表示できるようにする
+        return ModelListResponse(models=[])
+        # または raise HTTPException(status_code=500, detail="Failed to retrieve available models.")
 
 # --- Root Endpoint (変更なし) ---
 @app.get("/")

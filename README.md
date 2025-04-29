@@ -1,6 +1,6 @@
 # 日本語チャットボットアプリケーション
 
-このアプリケーションは、Groq API の `compound-beta-mini` モデルを使用したチャットボットです。高速な応答と、Web検索やコード実行といった Agentic Tooling 機能を活用できます。
+このアプリケーションは、ReactフロントエンドとFastAPIバックエンドで構築されたチャットボットです。Groq APIを利用し、**複数のAIモデル（`config.json` で設定可能）をブラウザ上で切り替えて**使用できます。高速な応答や、モデルによってはWeb検索やコード実行といったAgentic Tooling機能も活用できます。
 
 ## 技術スタック
 - React 18
@@ -8,6 +8,8 @@
 - Lucide React アイコン
 - React Markdown
 - react-textarea-autosize
+- FastAPI (Python)
+- Groq Python SDK
 
 ## 開発環境要件
 
@@ -16,7 +18,7 @@
 - Node.js: 20.17.0 以上
 - npm: 11.3.0 以上
 - Python: 3.11.9 以上
-- LM Studio (プロンプト拡張機能を使用する場合)
+- **Groq API キー** (環境変数 `GROQ_API_KEY` に設定)
 
 ### バックエンド依存関係
 ```bash
