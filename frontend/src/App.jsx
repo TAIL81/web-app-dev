@@ -77,10 +77,27 @@ function App() {
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
       {/* ヘッダー */}
       <header className="bg-white dark:bg-dark-card p-4 shadow-md dark:shadow-lg sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
-        {/* タイトル */}
+        {/* タイトルとバッジ */}
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-dark-text">Groq チャットボット</h1>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">日本語でチャット！</p>
+          {/* ↓ pタグとaタグを横並びにするためにdivで囲み、flexとitems-centerを追加 */}
+          <div className="flex items-center gap-1.5"> {/* gap-1.5 でテキストとバッジの間隔を調整 */}
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">日本語でチャット！</p>
+            {/* ↓ ここに指定されたバッジのHTMLをJSX形式で挿入 */}
+            <a
+              href="https://groq.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Powered by Groq for fast inference." // マウスオーバー時のツールチップ
+            >
+              <img
+                src="https://groq.com/wp-content/uploads/2024/03/PBG-mark1-color.svg"
+                alt="Powered by Groq for fast inference."
+                // ↓ Tailwind CSSで高さを調整 (h-4は約16px)。テキストサイズに合わせて調整してください (例: h-3.5)
+                className="h-4"
+              />
+            </a>
+          </div>
         </div>
 
         {/* モデル選択とボタン類 */}

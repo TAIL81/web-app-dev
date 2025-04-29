@@ -271,6 +271,16 @@ async def chat(request: ChatRequest):
                  # print(f"Warning: Invalid reasoning_format ('{reasoning_format_value}') in config. Using 'parsed'.") # コメントアウト
 
         start_time = time.time()
+        
+        # ★ デバッグ用: APIに送信するメッセージ履歴を出力
+        try:
+            print("\n--- Debug: Messages being sent to Groq API ---")
+            # json.dumps で整形して出力 (ensure_ascii=False で日本語をそのまま表示)
+            print(json.dumps(api_params["messages"], indent=2, ensure_ascii=False))
+            print("--- End Debug ---\n")
+        except Exception as print_err:
+            print(f"Debug print error: {print_err}") # print 自体のエラーもキャッチ
+
         # print("Calling Groq API...") # コメントアウト
         completion = groq_client.chat.completions.create(**api_params)
         end_time = time.time()

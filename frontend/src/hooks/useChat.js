@@ -201,31 +201,54 @@ const useChat = () => {
   };
 
   /**
-   * APIに送信するためのメッセージ履歴を準備
-   * @param {Array<object>} updatedMessages - UI更新後のメッセージ配列
-   * @param {string} combinedContent - buildCombinedContentで生成されたコンテンツ
+   * APIに送信するためのメッセージ履歴を準備 (履歴制限付き)
+   * @param {Array<object>} pastMessagesOnly - 過去のメッセージのみを含む配列 (今回のユーザー入力は除外済み)
+   * @param {string} combinedContent - buildCombinedContentで生成された今回のユーザー入力コンテンツ
    * @returns {Array<object>} API送信用メッセージ配列
    */
-  const prepareApiMessages = (updatedMessages, combinedContent) => {
-    // API送信済みの過去のメッセージ (ファイル添付自体は含めない)
-    const pastMessagesForApi = updatedMessages
-      .filter(msg => !msg.hidden && msg.sentToApi === true && !msg.isFileAttachment)
-      .map(msg => ({ role: msg.role, content: msg.content }));
+  const prepareApiMessages = (pastMessagesOnly, combinedContent) => {
+    const MAX_HISTORY_PAIRS = 5;
+    const MAX_API_MESSAGES = MAX_HISTORY_PAIRS * 2;
 
-    // 今回のユーザー入力 (テキスト + ファイル情報)
+    // ★ フィルタリング条件を修正:
+    // ユーザーメッセージは sentToApi をチェックせず、ファイル添付自体でなければ含める (デバッグ目的)
+    const relevantPastMessages = pastMessagesOnly.filter(msg => {
+      if (msg.hidden) return false; // 非表示は除外
+
+      if (msg.role === 'user') {
+        // ★★★ 修正点: sentToApi のチェックを一時的に削除 ★★★
+        // ユーザーメッセージ: ファイル添付自体でないものを含める
+        return !msg.isFileAttachment;
+      } else if (msg.role === 'assistant') {
+        // アシスタントメッセージ: content が文字列であれば含める (sentToApi は問わない)
+        return typeof msg.content === 'string';
+      }
+      return false; // その他のロールは除外
+    });
+
+    // --- 以降の処理 (履歴件数制限、マッピング、結合) は変更なし ---
+    const limitedPastMessages = relevantPastMessages.slice(-MAX_API_MESSAGES);
+    const pastMessagesForApi = limitedPastMessages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+    }));
     let currentMessageForApi = null;
     if (combinedContent) {
       currentMessageForApi = { role: 'user', content: combinedContent };
     }
-
     const messagesForApi = [...pastMessagesForApi];
     if (currentMessageForApi) {
-      messagesForApi.push(currentMessageForApi); // 最後に今回のユーザーメッセージを追加
+      messagesForApi.push(currentMessageForApi);
+    }
+    // --- デバッグログも変更なし ---
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`prepareApiMessages: Sending ${messagesForApi.length} messages (Limit: ${MAX_API_MESSAGES} past + 1 current max)`);
+        // console.log("Messages for API:", JSON.stringify(messagesForApi, null, 2));
     }
 
     return messagesForApi;
   };
-
+  
   /**
    * APIエラー発生時の処理 (エラー表示、UIロールバック)
    * @param {Error} error - 発生したエラーオブジェクト
@@ -287,8 +310,22 @@ const useChat = () => {
     const updatedMessages = updateUiBeforeSend(currentInput, pendingFileMessages, messages, setMessages);
     setInput(''); // 入力欄をクリア
 
+    // ★★★ ここから修正 ★★★
     // 3. API送信準備 (API用のメッセージ履歴作成)
-    const messagesForApi = prepareApiMessages(updatedMessages, combinedContent);
+
+    // prepareApiMessages に渡すための「過去の」メッセージ配列を作成
+    // updatedMessages から、今回の入力テキストとファイルに対応するメッセージを除外する
+    // (sentToApi が true になったばかりのメッセージを除外する)
+    const messagesForHistoryPreparation = updatedMessages.filter(msg => {
+      const isCurrentTextMessage = msg.role === 'user' && msg.sentToApi === true && !msg.isFileAttachment && msg.content === currentInput;
+      const isCurrentFileMessage = msg.role === 'user' && msg.sentToApi === true && msg.isFileAttachment && pendingFileMessages.some(pfm => pfm.fileData === msg.fileData);
+      // 今回のテキストメッセージでもファイルメッセージでも「ない」ものを残す
+      return !(isCurrentTextMessage || isCurrentFileMessage);
+    });
+
+  // prepareApiMessages を呼び出す (過去のメッセージのみをフィルタリングした配列と、今回のコンテンツを渡す)
+  const messagesForApi = prepareApiMessages(messagesForHistoryPreparation, combinedContent);
+  // ★★★ ここまで修正 ★★★
 
     // 送信するユーザーコンテンツがない場合は異常系として処理中断
     if (!messagesForApi.some(m => m.role === 'user')) {
