@@ -3,7 +3,7 @@
 このアプリケーションは、ReactフロントエンドとFastAPIバックエンドで構築されたチャットボットです。Groq APIを利用し、**複数のAIモデル（`config.json` で設定可能）をブラウザ上で切り替えて**使用できます。高速な応答や、モデルによってはWeb検索やコード実行といったAgentic Tooling機能も活用できます。
 
 ## 技術スタック
-- React 18
+- React 19
 - Tailwind CSS (カスタム設定あり)
 - Lucide React アイコン
 - React Markdown
