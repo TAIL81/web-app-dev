@@ -1,7 +1,7 @@
 # 日本語チャットボットアプリケーション
 
 ## 技術スタック
-- React 18
+- React 19
 - Tailwind CSS (カスタム設定あり)
 - Lucide React アイコン
 - React Markdown
@@ -37,13 +37,12 @@ npm install
 
 3. バックエンドサーバー起動:
 ```bash
-cd ../backend
-python main.py
+cd backend && uvicorn main:app --reload
 ```
 
 4. フロントエンド起動:
 ```bash
-npm start
+cd frontend && npm start
 ```
 
 ## 主要機能
