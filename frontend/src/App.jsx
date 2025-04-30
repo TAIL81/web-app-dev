@@ -106,17 +106,16 @@ function App() {
 
   // --- ▼ チャット履歴クリア確認を追加 ▼ ---
   const handleClearChat = useCallback(() => {
-    if (window.confirm('本当にチャット履歴をクリアしますか？この操作は元に戻せません。')) {
-      originalHandleClearChat();
-      setAttachedFiles([]); // 添付ファイルリストもクリア
-    }
+    console.log('handleClearChat called - skipping confirmation'); // デバッグ用ログを更新
+    originalHandleClearChat(); // 確認なしで元のクリア処理を呼び出す
+    setAttachedFiles([]); // 添付ファイルリストもクリア
   }, [originalHandleClearChat]);
   // --- ▲ チャット履歴クリア確認を追加 ▲ ---
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
       {/* ヘッダー (変更なし) */}
-      <header className="bg-white dark:bg-dark-card p-4 shadow-md dark:shadow-lg sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
+      <header className="bg-white dark:bg-dark-card p-4 shadow dark:shadow-md sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
         {/* タイトルとバッジ (変更なし) */}
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-dark-text">Groq チャットボット</h1>
@@ -155,7 +154,7 @@ function App() {
                 value={selectedModel}
                 onChange={handleModelChange}
                 disabled={isLoading || isExpanding || isModelsLoading || availableModels.length === 0}
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-2xl focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
                 title="バックエンドで設定可能なモデルを選択"
               >
                 {availableModels.length === 0 && !isModelsLoading ? (
@@ -231,7 +230,7 @@ function App() {
 
         {/* エラー表示 (変更なし) */}
         {error && (
-          <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-lg mb-4 shadow">
+          <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-2xl mb-4 shadow-sm">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
             <p className="text-red-600 dark:text-red-400 text-sm font-medium">
               エラー: {error}

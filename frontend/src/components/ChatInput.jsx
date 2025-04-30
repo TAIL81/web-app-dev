@@ -72,7 +72,7 @@ const ChatInput = ({
           onChange={handleFileSelect} // App.jsx から渡されたハンドラを使用
           className="hidden"
           multiple // 複数ファイル選択を許可
-          // accept="image/*,text/*,.pdf,.doc,.docx" // 必要に応じて許可するファイルタイプを指定
+          accept="text/*,.pdf,.doc,.docx" // 画像ファイルを除外し、テキスト、PDF、Word文書のみを許可する場合の例
           disabled={isLoading || isExpanding} // ローディング中などは無効化
         />
 

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- Constants ---
-const MAX_FILE_TEXT_LENGTH = 2000; // ファイル内容のプレビュー最大文字数
+const MAX_FILE_TEXT_LENGTH = 8000; // ファイル内容のプレビュー最大文字数
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // バックエンドAPIのURL
 
 // --- Initial State ---
@@ -413,15 +413,13 @@ const useChat = () => {
    * チャット履歴をクリアする関数 (フロントエンドのみ)
    */
   const handleClearChat = useCallback(() => {
-    // 確認ダイアログを表示
-    if (window.confirm("チャット履歴をクリアしてもよろしいですか？ (サーバーは停止しません)")) {
-      setMessages(initialMessages); // メッセージ履歴を初期状態に戻す
-      setError(null); // エラー表示をクリア
-      setIsLoading(false); // ローディング状態をリセット
-      setIsExpanding(false); // 拡張状態をリセット
-      setInput(''); // 入力欄をクリア
-      console.log('Chat history cleared locally.');
-    }
+    console.log('useChat: handleClearChat called - skipping confirmation'); // デバッグ用ログ更新
+    // 確認ダイアログを削除し、常にクリア処理を実行
+    setMessages(initialMessages); // メッセージ履歴を初期状態に戻す
+    setError(null); // エラー表示をクリア
+    setIsLoading(false); // ローディング状態をリセット
+    setIsExpanding(false); // 拡張状態をリセット
+    setInput(''); // 入力欄をクリア
   // 依存配列: これらの state setter が変更されることはないが、明示的に記述
   }, [setMessages, setError, setIsLoading, setIsExpanding, setInput]);
 
