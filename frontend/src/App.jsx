@@ -1,9 +1,9 @@
 /*
  * frontend/src/App.jsx
- * 2.7. 追加改善提案: 初期表示改善、クリア確認、ファイル添付準備
+ * 修正: ファイル添付関連の state とハンドラを useChat フックに統合
  */
-import React, { useEffect, useState, useCallback } from 'react'; // useState, useCallback をインポート
-import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react'; // Info アイコンを追加
+import React, { useEffect, useCallback } from 'react'; // useState を削除
+import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react';
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
@@ -15,9 +15,9 @@ function App() {
     setInput,
     isLoading,
     error,
-    setError,
+    setError, // setError は直接使っていないが、将来的に使う可能性あり
     messagesEndRef,
-    handleSend: originalHandleSend, // 元の handleSend を別名で保持
+    handleSend, // useChat から直接 handleSend を取得
     handleClearChat: originalHandleClearChat, // 元の handleClearChat を別名で保持
     isExpanding,
     setIsExpanding,
@@ -25,35 +25,15 @@ function App() {
     setSelectedModel,
     availableModels,
     isModelsLoading,
+    handleFileSelect, // useChat から handleFileSelect を取得
   } = useChat();
 
-  // --- ▼ ファイル添付関連の状態とハンドラを追加 ▼ ---
-  const [attachedFiles, setAttachedFiles] = useState([]); // 添付ファイルリストの状態
-
-  // ファイル選択ハンドラ
-  const handleFileSelect = useCallback((event) => {
-    const files = Array.from(event.target.files);
-    // console.log("Selected files:", files); // デバッグ用
-    // TODO: ファイルサイズや種類のバリデーションを追加する可能性あり
-    setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-    // 同じファイルを選択できるように input の value をリセット
-    event.target.value = null;
-  }, []);
-
-  // ファイル削除ハンドラ
-  const handleRemoveFile = useCallback((fileToRemove) => {
-    setAttachedFiles(prevFiles => prevFiles.filter(file => file !== fileToRemove));
-  }, []);
-
-  // メッセージ送信ハンドラ (ファイル情報を付与)
-  const handleSend = useCallback(() => {
-    // console.log("Sending with files:", attachedFiles); // デバッグ用
-    // useChat フックの handleSend にファイル情報も渡すように修正が必要
-    // 現状は input のみを渡しているが、将来的には attachedFiles も渡す
-    originalHandleSend(input, attachedFiles); // 仮: attachedFiles を渡すように変更
-    setAttachedFiles([]); // 送信後に添付ファイルリストをクリア
-  }, [input, attachedFiles, originalHandleSend]);
-  // --- ▲ ファイル添付関連の状態とハンドラを追加 ▲ ---
+  // --- ▼ ファイル添付関連の状態とハンドラを削除 ▼ ---
+  // const [attachedFiles, setAttachedFiles] = useState([]); // 削除
+  // const handleFileSelect = useCallback(...); // 削除 (useChat のものを使用)
+  // const handleRemoveFile = useCallback(...); // 削除 (useChat のものを使用)
+  // const handleSend = useCallback(...); // 削除 (useChat のものを使用)
+  // --- ▲ ファイル添付関連の状態とハンドラを削除 ▲ ---
 
 
   // --- ダークモード関連 (変更なし) ---
@@ -70,18 +50,42 @@ function App() {
     setIsExpanding(true);
     setError(null);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/chat';
+      // バックエンドURLを環境変数から取得、なければデフォルト値
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+      const apiUrl = `${backendUrl}/api/chat`; // 正しいエンドポイントURLを構築
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [{ role: 'user', content: input }],
           purpose: 'expand_prompt',
+          // 拡張時は選択中のモデルではなく、設定ファイルで指定されたモデルを使う想定
+          // model_name: selectedModel, // 必要であれば追加
         }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        let errorDetail = `HTTP error! status: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            // FastAPI のエラー詳細など、より具体的な情報を取得試行
+            if (errorData && errorData.detail) {
+                if (Array.isArray(errorData.detail)) {
+                  errorDetail = errorData.detail.map(d => `[${d.loc?.join('->') || 'N/A'}]: ${d.msg || 'No message'}`).join('; ');
+                } else if (typeof errorData.detail === 'string') {
+                  errorDetail = errorData.detail;
+                } else {
+                  errorDetail = JSON.stringify(errorData.detail);
+                }
+            } else if (errorData && errorData.message) {
+                errorDetail = errorData.message; // 一般的なエラーメッセージ
+            }
+        } catch (jsonError) {
+            // JSON パース失敗時のフォールバック
+            console.error("Error parsing expand prompt error response:", jsonError);
+            errorDetail = `APIエラー (${response.status}): ${response.statusText || '応答解析不可'}`;
+        }
+        throw new Error(errorDetail);
       }
       const data = await response.json();
       const expandedPrompt = data.content || '';
@@ -89,6 +93,8 @@ function App() {
         setInput(expandedPrompt);
       } else {
         console.warn("Received empty expanded prompt from backend:", data);
+        // ユーザーにフィードバックが必要な場合
+        // setError("プロンプトの拡張結果が空でした。");
       }
     } catch (err) {
       console.error("Error expanding prompt:", err);
@@ -104,13 +110,13 @@ function App() {
     setSelectedModel(event.target.value);
   };
 
-  // --- ▼ チャット履歴クリア確認を追加 ▼ ---
+  // --- ▼ チャット履歴クリア確認を修正 ▼ ---
   const handleClearChat = useCallback(() => {
     console.log('handleClearChat called - skipping confirmation'); // デバッグ用ログを更新
-    originalHandleClearChat(); // 確認なしで元のクリア処理を呼び出す
-    setAttachedFiles([]); // 添付ファイルリストもクリア
-  }, [originalHandleClearChat]);
-  // --- ▲ チャット履歴クリア確認を追加 ▲ ---
+    originalHandleClearChat(); // useChat のクリア処理を呼び出す
+    // setAttachedFiles([]); // App.jsx の state は削除したので不要
+  }, [originalHandleClearChat]); // 依存配列を修正
+  // --- ▲ チャット履歴クリア確認を修正 ▲ ---
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
@@ -170,9 +176,9 @@ function App() {
             )}
           </div>
 
-          {/* クリアボタン (onClick を修正) */}
+          {/* クリアボタン (onClick を修正済みの handleClearChat に) */}
           <button
-            onClick={handleClearChat} // 修正: 確認付きのハンドラに変更
+            onClick={handleClearChat} // 修正済みのハンドラを使用
             aria-label="チャット履歴をクリア"
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-red-500 transition-colors"
             title="チャット履歴をクリア"
@@ -195,7 +201,7 @@ function App() {
 
       {/* メインコンテンツ (チャット履歴) */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-        {/* --- ▼ チャット初期表示の改善 ▼ --- */}
+        {/* --- ▼ チャット初期表示の改善 (変更なし) ▼ --- */}
         {messages.length === 0 && !isLoading && !error && (
           <div className="flex flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 mt-10">
             <Bot size={48} className="mb-4 text-gray-400 dark:text-gray-500" />
@@ -232,7 +238,7 @@ function App() {
         {error && (
           <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-2xl mb-4 shadow-sm">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <p className="text-red-600 dark:text-red-400 text-sm font-medium">
+            <p className="text-red-600 dark:text-red-400 text-sm font-medium break-words max-w-full">
               エラー: {error}
             </p>
           </div>
@@ -240,17 +246,17 @@ function App() {
         <div ref={messagesEndRef} />
       </main>
 
-      {/* フッター (入力欄) */}
+      {/* フッター (入力欄) - ChatInput に渡す props を修正 */}
       <ChatInput
         input={input}
         setInput={setInput}
         isLoading={isLoading || isModelsLoading}
         isExpanding={isExpanding}
-        handleSend={handleSend} // 修正: ファイル対応版のハンドラを渡す
+        handleSend={handleSend} // 修正: useChat の handleSend を渡す
         handleExpandPrompt={handleExpandPrompt}
-        handleFileSelect={handleFileSelect} // 追加: ファイル選択ハンドラを渡す
-        attachedFiles={attachedFiles} // 追加: 添付ファイルリストを渡す
-        handleRemoveFile={handleRemoveFile} // 追加: ファイル削除ハンドラを渡す
+        handleFileSelect={handleFileSelect} // 修正: useChat の handleFileSelect を渡す
+        // attachedFiles={attachedFiles} // 削除: App.jsx の state は使わない
+        // handleRemoveFile={handleRemoveFile} // 削除: App.jsx のハンドラは使わない
       />
     </div>
   );

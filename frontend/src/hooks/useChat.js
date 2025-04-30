@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // --- Constants ---
-const MAX_FILE_TEXT_LENGTH = 8000; // ファイル内容のプレビュー最大文字数
+//const MAX_FILE_TEXT_LENGTH = 8000; // ファイル内容のプレビュー最大文字数 (現在は未使用)
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // バックエンドAPIのURL
+const SUPPORTED_TEXT_EXTENSIONS = /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i; // サポートするテキストファイルの拡張子
 
 // --- Initial State ---
 // チャットの初期メッセージ (必要に応じて変更)
@@ -14,9 +15,9 @@ const initialMessages = [
 // --- Helper Functions (File Processing) ---
 
 /**
- * Fileオブジェクトを読み込み、内容 (DataURLまたはテキスト) とエラーを返すPromiseを生成
+ * Fileオブジェクトを読み込み、内容 (テキスト) とエラーを返すPromiseを生成
  * @param {File} file - 読み込むFileオブジェクト
- * @returns {Promise<{fileData: {type: string, url?: string, text?: string, fileName: string}|null, error: string|null, fileName: string}>}
+ * @returns {Promise<{fileData: {type: string, text?: string, fileName: string}|null, error: string|null, fileName: string}>}
  */
 const readFileAsPromise = (file) => {
   return new Promise((resolve) => {
@@ -29,12 +30,12 @@ const readFileAsPromise = (file) => {
       let fileData = null;
       let error = null;
       try {
-        // 画像ファイルの場合
-        if (fileType.startsWith('image/')) {
-          fileData = { type: "image_url", url: fileContent, fileName: fileName };
+        // 画像ファイルの場合 (コメントアウト)
+        // if (fileType.startsWith('image/')) {
+        //   fileData = { type: "image_url", url: fileContent, fileName: fileName };
         // テキストベースのファイルの場合 (拡張子でも判定)
-        } else if (fileType.startsWith('text/') || /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i.test(fileName)) {
-          fileData = { type: "text", text: fileContent, fileName: fileName };
+        /* } else */ if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
+          fileData = { type: "text", text: fileContent, fileName: fileName }; // テキストファイルのみ処理
         } else {
           // サポート外のファイル形式
           error = `サポートされていないファイル形式です (${fileType})`;
@@ -53,9 +54,9 @@ const readFileAsPromise = (file) => {
     };
 
     // ファイルの種類に応じて読み込み方法を分岐
-    if (fileType.startsWith('image/')) {
-      reader.readAsDataURL(file); // 画像はDataURLとして読み込む
-    } else if (fileType.startsWith('text/') || /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i.test(fileName)) {
+    // if (fileType.startsWith('image/')) { // 画像は扱わない (コメントアウト)
+    //   reader.readAsDataURL(file); // 画像はDataURLとして読み込む
+    /* } else */ if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
       reader.readAsText(file); // テキストはテキストとして読み込む
     } else {
       // サポート外の場合はエラーとして即時解決
@@ -74,9 +75,9 @@ const createFileUiMessage = (result) => {
   if (error) {
     // エラーメッセージ
     return { role: 'user', content: `[ファイル処理エラー: ${fileName}]`, isFileAttachment: false, error: error, sentToApi: true }; // エラーはAPIには送らないが、UI上は送信済み扱い
-  } else if (fileData?.type === 'image_url') {
+  // } else if (fileData?.type === 'image_url') { // 画像は扱わない (コメントアウト)
     // 画像添付メッセージ
-    return { role: 'user', content: `[画像添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false }; // まだAPIには送っていない
+    // return { role: 'user', content: `[画像添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false }; // まだAPIには送っていない
   } else if (fileData?.type === 'text') {
     // テキストファイル添付メッセージ
     return { role: 'user', content: `[ファイル添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false }; // まだAPIには送っていない
@@ -158,14 +159,15 @@ const useChat = () => {
 
     if (filesToSend.length > 0) {
       const fileDescriptions = filesToSend.map(fileData => {
-        if (fileData.type === 'image_url') {
+        // if (fileData.type === 'image_url') { // 画像は扱わない (コメントアウト)
           // 画像の場合はファイル名を記述 (Base64データは含めない)
-          return `\n[添付画像: ${fileData.fileName || '名称不明'}]`;
-        } else if (fileData.type === 'text') {
-          // テキストファイルの場合は内容をプレビュー (長すぎる場合は省略)
-          const truncatedText = fileData.text.length > MAX_FILE_TEXT_LENGTH
-            ? fileData.text.substring(0, MAX_FILE_TEXT_LENGTH) + '... (省略)'
-            : fileData.text;
+          // return `\n[添付画像: ${fileData.fileName || '名称不明'}]`;
+        /* } else */ if (fileData.type === 'text') {
+          // テキストファイルの場合は内容を全文結合
+          const truncatedText = fileData.text; // ★ 制限を解除
+          // const truncatedText = fileData.text.length > MAX_FILE_TEXT_LENGTH // 元のコード (プレビュー)
+          //   ? fileData.text.substring(0, MAX_FILE_TEXT_LENGTH) + '... (省略)'
+          //   : fileData.text;
           return `\n[添付ファイル: ${fileData.fileName || '名称不明'}]\n\`\`\`\n${truncatedText}\n\`\`\``;
         }
         return ''; // 未知のタイプは無視
@@ -248,7 +250,7 @@ const useChat = () => {
 
     return messagesForApi;
   };
-  
+
   /**
    * APIエラー発生時の処理 (エラー表示、UIロールバック)
    * @param {Error} error - 発生したエラーオブジェクト

@@ -2,7 +2,7 @@
 import React, { useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 // lucide-react から必要なアイコンを一度にインポート
-import { Send, Sparkles, Paperclip, X, FileText } from 'lucide-react'; // X, FileText アイコンを追加
+import { Send, Sparkles, Paperclip } from 'lucide-react'; // 未使用の X, FileText アイコンを削除
 
 const ChatInput = ({
   input,
@@ -12,8 +12,6 @@ const ChatInput = ({
   handleSend,
   handleExpandPrompt,
   handleFileSelect, // App.jsx から受け取る
-  attachedFiles,    // App.jsx から受け取る
-  handleRemoveFile  // App.jsx から受け取る
 }) => {
   const fileInputRef = useRef(null);
 
@@ -23,45 +21,12 @@ const ChatInput = ({
     }
   };
 
-  // ファイルサイズのフォーマット関数 (例)
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-
+  // 未使用の formatFileSize 関数を削除
   return (
     <footer className="bg-white dark:bg-dark-card p-4 shadow-inner sticky bottom-0 z-10">
-      {/* --- ▼ 添付ファイル表示エリアを追加 ▼ --- */}
-      {attachedFiles && attachedFiles.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2 border-t border-gray-200 dark:border-gray-700 pt-2">
-          {attachedFiles.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-md p-1.5 text-xs"
-              title={`${file.name} (${formatFileSize(file.size)})`}
-            >
-              <FileText className="w-4 h-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-              <span className="text-gray-800 dark:text-gray-200 truncate max-w-[100px] sm:max-w-[150px]">
-                {file.name}
-              </span>
-              <button
-                onClick={() => handleRemoveFile(file)}
-                aria-label={`添付ファイル ${file.name} を削除`}
-                className="p-0.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-red-500"
-                disabled={isLoading || isExpanding}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {/* --- ▲ 添付ファイル表示エリアを追加 ▲ --- */}
-
+      {/* --- ▼ 添付ファイル表示エリアを削除 ▼ --- */}
+      {/* ファイル添付の状態は useChat フックの messages state で管理・表示されるため、ここでは不要 */}
+      {/* --- ▲ 添付ファイル表示エリアを削除 ▲ --- */}
       {/* items-end でテキストエリアとボタンの下端を揃える */}
       <div className="flex items-end gap-2">
 
@@ -136,11 +101,10 @@ const ChatInput = ({
         {/* 送信ボタン (変更なし) */}
         <button
           onClick={handleSend}
-          // 送信ボタンは入力があるか、ファイルが添付されていれば有効にする
-          disabled={isLoading || (!input.trim() && attachedFiles.length === 0) || isExpanding}
-          aria-label="送信"
+          // 送信ボタンは入力があれば有効にする (ファイル添付は useChat 側で判断)
+          disabled={isLoading || !input.trim() || isExpanding}          aria-label="送信"
           className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${
-            isLoading || (!input.trim() && attachedFiles.length === 0) || isExpanding
+            isLoading || !input.trim() || isExpanding
               ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
               : 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
           }`}
