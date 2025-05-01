@@ -59,7 +59,7 @@ cd frontend && npm start
 
 ## Available Scripts
 ### `npm start`
-開発モードでアプリを起動 [http://localhost:3000](http://localhost:3000)
+開発モードでアプリを起動 [http://localhost:3001](http://localhost:3001)
 
 ### `npm test`
 テストランナーを起動
