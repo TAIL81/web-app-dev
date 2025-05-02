@@ -3,6 +3,10 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+// LaTeXサポート用ライブラリ
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css'; // KaTeXのCSSをインポート
 
 const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen';
 
@@ -140,7 +144,11 @@ const Message = ({ message }) => {
             <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 mr-2 flex-shrink-0 mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             <div className={`prose prose-sm max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow ${aiMessageBgColor} dark:prose-invert break-words w-full`}>
               {message.content ? (
-                <ReactMarkdown components={markdownComponents}>
+                <ReactMarkdown
+                  components={markdownComponents}
+                  remarkPlugins={[remarkMath]} // remark-math プラグインを追加
+                  rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを追加
+                >
                   {message.content}
                 </ReactMarkdown>
               ) : (
