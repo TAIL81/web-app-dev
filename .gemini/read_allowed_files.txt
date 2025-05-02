@@ -1,4 +1,0 @@
-@.gemini\System_instructions.md
-@backend\main.py
-@frontend\src\App.jsx
-@frontend\src\hooks\useChat.js
