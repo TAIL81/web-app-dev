@@ -233,8 +233,8 @@ function App() {
 
         {/* メッセージリスト */}
         {messages.map((msg, index) => (
-          // TODO: メッセージに一意なIDを付与し、keyとして使用する
-          <Message key={index} message={msg} /> // key は本来なら一意なIDを使うべき
+          // メッセージに一意なIDが付与されている前提 (useChat.jsで対応)
+          <Message key={msg.id || index} message={msg} /> // key に msg.id を使用 (フォールバックとして index)
         ))}
 
         {/* メッセージ送受信中のローディング表示 */}

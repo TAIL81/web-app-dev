@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid'; // uuid をインポート
 
 // --- 定数 ---
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // バックエンドAPIのURL
@@ -66,10 +67,10 @@ const createFileUiMessage = (result) => {
   const { fileData, error, fileName } = result;
   if (error) {
     // エラーメッセージを生成 (UI表示用、APIには送信しない)
-    return { role: 'user', content: `[ファイル処理エラー: ${fileName}]`, isFileAttachment: false, error: error, sentToApi: true };
+    return { id: uuidv4(), role: 'user', content: `[ファイル処理エラー: ${fileName}]`, isFileAttachment: false, error: error, sentToApi: true };
   } else if (fileData?.type === 'text') {
     // テキストファイル添付メッセージを生成 (UI表示用、API未送信状態)
-    return { role: 'user', content: `[ファイル添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false };
+    return { id: uuidv4(), role: 'user', content: `[ファイル添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false };
   }
   return null; // 有効なメッセージが生成されなかった場合
 };
@@ -172,7 +173,7 @@ const useChat = () => {
     let updatedMessages = [...currentMessages];
     // テキスト入力があれば、新しいユーザーメッセージとして追加
     if (textInput) {
-      const newUserTextMessage = { role: 'user', content: textInput, sentToApi: false };
+      const newUserTextMessage = { id: uuidv4(), role: 'user', content: textInput, sentToApi: false }; // IDを追加
       updatedMessages.push(newUserTextMessage);
     }
     // 今回送信するテキストメッセージとファイル添付メッセージの sentToApi フラグを true に更新
@@ -382,6 +383,7 @@ const useChat = () => {
       setMessages(prev => [
         ...prev,
         {
+          id: uuidv4(), // IDを追加
           role: 'assistant',
           content: data.content, // 応答メッセージ本文
           reasoning: data.reasoning, // reasoning情報 (あれば)
