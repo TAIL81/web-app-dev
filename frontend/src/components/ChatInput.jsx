@@ -2,16 +2,18 @@
 import React, { useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 // lucide-react から必要なアイコンを一度にインポート
-import { Send, Languages, Paperclip } from 'lucide-react'; // Sparkles を Languages に変更
+import { Send, Languages, Paperclip, RotateCcw } from 'lucide-react'; // RotateCcw をインポート
 
 const ChatInput = ({
   input,
-  setInput,
+  // setInput, // App.jsx から handleInputChange を受け取るように変更
+  handleInputChange, // App.jsx から受け取る入力変更ハンドラ
   isLoading,
   isExpanding,
   handleSend,
-  handleTranslate, // App.jsx から受け取るハンドラ名を変更
+  handleTranslate, // App.jsx から受け取る翻訳/リセットハンドラ
   handleFileSelect, // App.jsx から受け取る
+  isTranslated, // App.jsx から受け取る翻訳済み状態
 }) => {
   const fileInputRef = useRef(null);
 
@@ -58,7 +60,8 @@ const ChatInput = ({
         {/* TextareaAutosize (変更なし) */}
         <TextareaAutosize
           value={input}
-          onChange={e => setInput(e.target.value)}
+          // onChange={e => setInput(e.target.value)} // handleInputChange を使うように変更
+          onChange={e => handleInputChange(e.target.value)} // 修正: App.jsx のハンドラを呼び出す
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
               e.preventDefault(); // Enterキーのみで翻訳を実行しないように変更 (必要なら handleTranslate() を呼ぶ)
@@ -80,20 +83,22 @@ const ChatInput = ({
         {/* 翻訳ボタン (旧プロンプト拡張ボタン) */}
         <button
           id="translate-button" // id を変更
-          onClick={handleTranslate} // onClick ハンドラ名を変更
-          aria-label="英語に翻訳" // aria-label を変更
-          title="入力内容を英語に翻訳" // title を変更
+          onClick={handleTranslate} // 翻訳/リセットハンドラ
+          // ▼ 状態に応じて aria-label と title を変更 ▼
+          aria-label={isTranslated ? "元のテキストに戻す" : "英語に翻訳"}
+          title={isTranslated ? "元のテキストに戻す" : "入力内容を英語に翻訳"}
+          // ▼ 状態に応じてスタイル (色) を変更 ▼
           className={`p-2 rounded-lg text-gray-600 dark:text-gray-400 flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || !input.trim() || isExpanding
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50'
-              : 'bg-green-100 dark:bg-green-800 hover:bg-green-200 dark:hover:bg-green-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card' // スタイル (色) を変更
+              : isTranslated
+                ? 'bg-orange-100 dark:bg-orange-800 hover:bg-orange-200 dark:hover:bg-orange-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card' // リセット可能時のスタイル
+                : 'bg-green-100 dark:bg-green-800 hover:bg-green-200 dark:hover:bg-green-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card' // 翻訳実行時のスタイル
             }`}
           disabled={isLoading || !input.trim() || isExpanding}
         >
-          {isExpanding ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 dark:border-gray-100"></div>
-          ) : (
-            <Languages className="w-5 h-5" /> // アイコンを Languages に変更
-          )}
+          {/* ▼ 状態に応じてアイコンを変更 ▼ */}
+          {isExpanding ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 dark:border-gray-100"></div>
+            : isTranslated ? <RotateCcw className="w-5 h-5" /> : <Languages className="w-5 h-5" />}
         </button>
 
         {/* 送信ボタン (変更なし) */}

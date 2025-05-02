@@ -3,7 +3,7 @@
  * 修正: ファイル添付関連の state とハンドラを useChat フックに統合
  */
 import React, { useEffect, useCallback } from 'react'; // useState を削除
-import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react'; // 未使用の Languages を削除
+import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react'; // 未使用の RotateCcw を削除
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
@@ -26,6 +26,7 @@ function App() {
     availableModels,
     isModelsLoading,
     handleFileSelect, // useChat から handleFileSelect を取得
+    // setInput, // setInput は直接使わず、handleInputChange を経由する
   } = useChat();
 
   // --- ▼ ファイル添付関連の状態とハンドラを削除 ▼ ---
@@ -35,6 +36,9 @@ function App() {
   // const handleSend = useCallback(...); // 削除 (useChat のものを使用)
   // --- ▲ ファイル添付関連の状態とハンドラを削除 ▲ ---
 
+  // --- ▼ 翻訳リセット機能用 State ▼ ---
+  const [originalInputBeforeTranslate, setOriginalInputBeforeTranslate] = React.useState(null);
+  // --- ▲ 翻訳リセット機能用 State ▲ ---
 
   // --- ダークモード関連 (変更なし) ---
   const [isDarkMode, setIsDarkMode] = React.useState(true);
@@ -45,7 +49,16 @@ function App() {
   // --- /ダークモード関連 ---
 
   // --- 翻訳ボタンのハンドラー (旧 handleExpandPrompt) ---
+  // ▼ リセット機能を追加 ▼
   const handleTranslate = async () => {
+    // --- リセット処理 ---
+    if (originalInputBeforeTranslate !== null) {
+      setInput(originalInputBeforeTranslate); // 元のテキストに戻す
+      setOriginalInputBeforeTranslate(null); // リセット状態を解除
+      return; // 処理終了
+    }
+
+    // --- 翻訳処理 (初回クリック時) ---
     if (!input.trim() || isLoading || isExpanding) return;
     setIsExpanding(true);
     setError(null);
@@ -53,6 +66,7 @@ function App() {
       // バックエンドURLを環境変数から取得、なければデフォルト値
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
       const apiUrl = `${backendUrl}/api/chat`; // 正しいエンドポイントURLを構築
+      const textToTranslate = input; // API呼び出し前に現在の入力を保持
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -90,13 +104,16 @@ function App() {
       const data = await response.json();
       const translatedText = data.content || '';
       if (translatedText) {
+        setOriginalInputBeforeTranslate(textToTranslate); // 翻訳前のテキストを保存
         setInput(translatedText); // 入力欄を翻訳結果で更新
       } else {
         console.warn("Received empty translation from backend:", data);
+        setOriginalInputBeforeTranslate(null); // 翻訳失敗時はリセット状態にしない
         // ユーザーにフィードバックが必要な場合
         // setError("翻訳結果が空でした。");
       }
     } catch (err) {
+      setOriginalInputBeforeTranslate(null); // エラー発生時もリセット状態にしない
       console.error("Error translating text:", err);
       setError(err instanceof Error ? err.message : '翻訳中に不明なエラーが発生しました。'); // エラーメッセージを変更
     } finally {
@@ -104,6 +121,16 @@ function App() {
     }
   };
   // --- /翻訳ボタンのハンドラー ---
+
+  // --- ▼ 入力変更ハンドラ (手動変更時にリセット状態を解除) ▼ ---
+  const handleInputChange = (newInput) => {
+    setInput(newInput); // useChat の setInput を呼び出す
+    if (originalInputBeforeTranslate !== null) {
+      setOriginalInputBeforeTranslate(null); // 手動変更でリセット状態を解除
+    }
+  };
+  // --- ▲ 入力変更ハンドラ ▲ ---
+
 
   // モデル選択ハンドラ (変更なし)
   const handleModelChange = (event) => {
@@ -249,12 +276,14 @@ function App() {
       {/* フッター (入力欄) - ChatInput に渡す props を修正 */}
       <ChatInput
         input={input}
-        setInput={setInput}
+        // setInput={setInput} // setInput の代わりに handleInputChange を渡す
+        handleInputChange={handleInputChange} // 修正: 入力変更ハンドラを渡す
         isLoading={isLoading || isModelsLoading}
         isExpanding={isExpanding}
         handleSend={handleSend} // 修正: useChat の handleSend を渡す
         handleTranslate={handleTranslate} // 修正: 翻訳ハンドラを渡す
         handleFileSelect={handleFileSelect} // 修正: useChat の handleFileSelect を渡す
+        isTranslated={originalInputBeforeTranslate !== null} // 翻訳済み状態かを渡す
         // attachedFiles={attachedFiles} // 削除: App.jsx の state は使わない
         // handleRemoveFile={handleRemoveFile} // 削除: App.jsx のハンドラは使わない
       />
