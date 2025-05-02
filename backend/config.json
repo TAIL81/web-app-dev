@@ -21,11 +21,11 @@
     ]
   },
   "translate_to_english": {
-    "model_name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "model_name": "llama3-8b-8192",
     "system_prompt": "Translate the following text into English. Output only the translated text.",
-    "temperature": 0.6,
+    "temperature": 0.3,
     "top_p": 0.95,
-    "max_completion_tokens": 1024,
+    "max_completion_tokens": 8192,
     "stream": false
   }
 }
