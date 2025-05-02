@@ -21,10 +21,10 @@
     ]
   },
   "prompt_expansion": {
-    "model_name": "llama-3.3-70b-versatile",
-    "system_prompt": "You are a system that rephrases and expands input prompts into a clearer, more effective format while preserving the original intent, structure, tone, and style. Generate only a single rephrased prompt and exclude any direct answers or explanations.",
-    "temperature": 0.4,
-    "top_p": 0.8,
+    "model_name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "system_prompt": "You are a translator. Translate the following Japanese text into English.",
+    "temperature": 0.6,
+    "top_p": 0.95,
     "max_completion_tokens": 512,
     "stream": false
   }
