@@ -1,8 +1,4 @@
-/*
- * frontend/src/components/Message.jsx
- * 修正: フック呼び出しをトップレベルに移動
- */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // useCallback を追加
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -11,11 +7,11 @@ import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lu
 const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen';
 
 const Message = ({ message }) => {
-  // --- ▼ フック呼び出しをコンポーネントのトップレベルに集約 ▼ ---
-  const getInitialReasoningOpen = useCallback(() => { // useCallback を追加 (必須ではないが、関数定義をメモ化)
+  // --- State and Hooks ---
+  const getInitialReasoningOpen = useCallback(() => { // 初期表示状態をlocalStorageから取得
     const storedValue = localStorage.getItem(REASONING_OPEN_STORAGE_KEY);
     return storedValue ? JSON.parse(storedValue) : false;
-  }, []); // 依存配列は空
+  }, []);
 
   const [isReasoningOpen, setIsReasoningOpen] = useState(getInitialReasoningOpen);
   const [copiedStates, setCopiedStates] = useState({});
@@ -24,7 +20,7 @@ const Message = ({ message }) => {
     localStorage.setItem(REASONING_OPEN_STORAGE_KEY, JSON.stringify(isReasoningOpen));
   }, [isReasoningOpen]);
 
-  // コードブロックのコピー処理 (useCallback を早期リターンの前に移動)
+  // コードブロックのコピー処理
   const handleCopy = useCallback((codeToCopy, index) => {
     navigator.clipboard.writeText(codeToCopy).then(() => {
       setCopiedStates(prev => ({ ...prev, [index]: true }));
@@ -34,21 +30,18 @@ const Message = ({ message }) => {
     }).catch(err => {
       console.error('Failed to copy code: ', err);
     });
-  }, []); // 依存配列は空のまま
-  // --- ▲ フック呼び出しをコンポーネントのトップレベルに集約 ▲ ---
+  }, []);
 
-  // --- ▼ 早期リターン: hidden メッセージはレンダリングしない ▼ ---
+  // 早期リターン: hidden プロパティを持つメッセージはレンダリングしない
   if (message.hidden) {
-    return null; // フック呼び出しの後なので問題ない
+    return null;
   }
-  // --- ▲ 早期リターン ▲ ---
 
   // AIメッセージ本文用の背景色クラス
   const aiMessageBgColor = 'bg-sky-50 dark:bg-sky-900/60';
 
-  // --- ▼ react-markdown のカスタムコンポーネント (変更なし) ▼ ---
-  // handleCopy はトップレベルで定義されているため、ここで安全に使用できる
-  const markdownComponents = {
+  // --- Markdown Components for ReactMarkdown ---
+  const markdownComponents = { // コードブロックと段落のカスタムレンダリング
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children).replace(/\n$/, '');
@@ -57,7 +50,7 @@ const Message = ({ message }) => {
       return !inline ? (
         <div className="code-block relative group my-4 rounded-md bg-gray-800 dark:bg-gray-900 font-mono text-sm">
           <button
-            onClick={() => handleCopy(codeString, codeBlockIndex)} // handleCopy を使用
+            onClick={() => handleCopy(codeString, codeBlockIndex)}
             className="absolute top-2 right-2 p-1.5 bg-gray-600 dark:bg-gray-700 rounded-md text-gray-300 hover:text-white hover:bg-gray-500 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label={copiedStates[codeBlockIndex] ? "コピーしました" : "コードをコピー"}
             title={copiedStates[codeBlockIndex] ? "コピーしました" : "コードをコピー"}
@@ -81,9 +74,8 @@ const Message = ({ message }) => {
     },
     p: ({ node, ...props }) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} />
   };
-  // --- ▲ react-markdown のカスタムコンポーネント ▲ ---
 
-  // --- ▼ JSX レンダリング部分 (変更なし) ▼ ---
+  // --- Component Rendering ---
   return (
     <div>
       {/* ユーザーメッセージ */}
@@ -160,7 +152,6 @@ const Message = ({ message }) => {
       )}
     </div>
   );
-  // --- ▲ JSX レンダリング部分 ▲ ---
 };
 
 export default Message;

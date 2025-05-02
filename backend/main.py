@@ -49,19 +49,19 @@ def load_config_on_startup():
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             loaded_config = json.load(f)
-            # print(f"設定ファイルを読み込みました: {CONFIG_FILE}") # コメントアウト
+            # print(f"設定ファイルを読み込みました: {CONFIG_FILE}")
 
             # --- 主要な設定セクションの存在確認 ---
             if "main_chat" not in loaded_config:
-                # print(f"警告: 設定ファイルに 'main_chat' セクションが見つかりません。デフォルト値を使用します。") # コメントアウト
+                # print(f"警告: 設定ファイルに 'main_chat' セクションが見つかりません。デフォルト値を使用します。")
                 loaded_config["main_chat"] = {} # 空の辞書で初期化
             if "prompt_expansion" not in loaded_config:
-                # print(f"警告: 設定ファイルに 'prompt_expansion' セクションが見つかりません。デフォルト値を使用します。") # コメントアウト
+                # print(f"警告: 設定ファイルに 'prompt_expansion' セクションが見つかりません。デフォルト値を使用します。")
                 loaded_config["prompt_expansion"] = {} # 空の辞書で初期化
 
             # --- reasoning_supported_models のデフォルト値設定 (main_chat のみ) ---
             if "reasoning_supported_models" not in loaded_config.get("main_chat", {}):
-                 # print("情報: 'main_chat' セクションに 'reasoning_supported_models' が見つかりません。空リストを設定します。") # コメントアウト
+                 # print("情報: 'main_chat' セクションに 'reasoning_supported_models' が見つかりません。空リストを設定します。")
                  loaded_config["main_chat"]["reasoning_supported_models"] = []
 
             config = loaded_config # グローバル変数に格納
@@ -86,44 +86,44 @@ async def startup_event():
     設定の読み込み、APIキーの取得、Groqクライアントの初期化を行う。
     """
     global config, groq_client, api_key # グローバル変数を参照・更新
-    # print("--- Application Startup Sequence ---") # コメントアウト
+    # print("--- Application Startup Sequence ---")
     try:
         # 1. 設定ファイルの読み込み
-        # print("1. 設定ファイルを読み込んでいます...") # コメントアウト
+        # print("1. 設定ファイルを読み込んでいます...")
         load_config_on_startup() # グローバル変数 config が更新される
-        # print("   設定ファイルの読み込み完了。") # コメントアウト
+        # print("   設定ファイルの読み込み完了。")
 
         # 2. APIキーの取得 (環境変数からのみ)
-        # print("2. Groq API キーを環境変数から取得しています (GROQ_API_KEY)...") # コメントアウト
+        # print("2. Groq API キーを環境変数から取得しています (GROQ_API_KEY)...")
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             print("致命的エラー: 環境変数 'GROQ_API_KEY' が設定されていません。") # エラーログは残す
             raise RuntimeError("Groq API キーが環境変数 'GROQ_API_KEY' に設定されていません。")
-        # print("   API キー取得完了。") # コメントアウト
+        # print("   API キー取得完了。")
 
         # 3. Groqクライアントの初期化
-        # print("3. Groq クライアントを初期化しています...") # コメントアウト
+        # print("3. Groq クライアントを初期化しています...")
         groq_client = Groq(api_key=api_key)
         # 簡単な接続テスト (オプション) - 起動時に認証エラーを検知しやすくする
         try:
             groq_client.models.list() # モデルリスト取得を試みる
-            # print("   Groq クライアント初期化および接続テスト完了。") # コメントアウト
+            # print("   Groq クライアント初期化および接続テスト完了。")
         except AuthenticationError as auth_err:
             print(f"致命的エラー: Groq API 認証エラー (起動時): {auth_err}") # エラーログは残す
             raise RuntimeError(f"Groq API 認証エラー。提供された API キーが無効です: {auth_err}") from auth_err
         except APIConnectionError as conn_err:
              print(f"警告: Groq API への接続テストに失敗しました (起動時): {conn_err}") # 警告ログは残す
-             # print("   ネットワーク接続を確認してください。サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。") # コメントアウト
+             # print("   ネットワーク接続を確認してください。サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。")
         except GroqError as ge:
              print(f"警告: Groq クライアント初期化中に予期せぬ Groq エラーが発生しました: {ge}") # 警告ログは残す
-             # print("   サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。") # コメントアウト
+             # print("   サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。")
         except Exception as e:
              print(f"警告: Groq クライアント初期化中に予期せぬエラーが発生しました: {type(e).__name__} - {e}") # 警告ログは残す
              print(traceback.format_exc()) # エラーログは残す
-             # print("   サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。") # コメントアウト
+             # print("   サーバーは起動を続行しますが、API呼び出しは失敗する可能性があります。")
 
 
-        # print("--- Application Startup Complete ---") # コメントアウト
+        # print("--- Application Startup Complete ---")
 
     except RuntimeError as e:
         # 起動シーケンス中の致命的エラー (設定ファイル、APIキー、初期認証)
@@ -181,17 +181,17 @@ async def chat(request: ChatRequest):
         print("エラー: Groq クライアントが利用できません (初期化に失敗したか、まだ完了していません)。") # エラーログは残す
         raise HTTPException(status_code=503, detail="Groq クライアントが利用できません。サーバーが正しく起動していない可能性があります。")
 
-    # print(f"\n--- New Request Received (Purpose: {request.purpose}) ---") # コメントアウト
+    # print(f"\n--- New Request Received (Purpose: {request.purpose}) ---")
 
     # --- purpose に基づいて設定を選択 ---
     if request.purpose == "translate_to_english":
         settings_key = "translate_to_english"
-        # print("Using 'translate_to_english' settings from config.json") # コメントアウト
+        # print("Using 'translate_to_english' settings from config.json")
     elif request.purpose == "main_chat":
         settings_key = "main_chat"
-        # print("Using 'main_chat' settings from config.json") # コメントアウト
+        # print("Using 'main_chat' settings from config.json")
     else:
-        # print(f"警告: 不明な purpose '{request.purpose}' が指定されました。'main_chat' 設定を使用します。") # コメントアウト
+        # print(f"警告: 不明な purpose '{request.purpose}' が指定されました。'main_chat' 設定を使用します。")
         settings_key = "main_chat"
 
     # グローバル config から設定を取得
@@ -212,32 +212,32 @@ async def chat(request: ChatRequest):
 
     # メインチャットの場合のみリクエストボディで上書き
     if request.purpose == "main_chat":
-        # print("Checking for overrides from request body (main_chat only)...") # コメントアウト
+        # print("Checking for overrides from request body (main_chat only)...")
         if request.model_name:
             model_name = request.model_name
-            # print(f"  - Overriding model_name: {model_name}") # コメントアウト
+            # print(f"  - Overriding model_name: {model_name}")
         if request.temperature is not None:
             temperature = request.temperature
-            # print(f"  - Overriding temperature: {temperature}") # コメントアウト
+            # print(f"  - Overriding temperature: {temperature}")
         if request.max_completion_tokens:
             max_tokens = request.max_completion_tokens
-            # print(f"  - Overriding max_completion_tokens: {max_tokens}") # コメントアウト
+            # print(f"  - Overriding max_completion_tokens: {max_tokens}")
 
-    # print(f"System Prompt: '{system_prompt_content[:100]}...'") # コメントアウト
-    # print(f"Using Model: {model_name}") # コメントアウト
+    # print(f"System Prompt: '{system_prompt_content[:100]}...'")
+    # print(f"Using Model: {model_name}")
 
     try:
         messages_for_api = []
         if system_prompt_content:
             messages_for_api.append({"role": "system", "content": system_prompt_content})
-            # print("Added system prompt.") # コメントアウト
+            # print("Added system prompt.")
 
-        # print("Processing messages:") # コメントアウト
+        # print("Processing messages:")
         if request.purpose == "translate_to_english":
             last_user_message = next((msg for msg in reversed(request.messages) if msg.role == 'user'), None)
             if last_user_message and isinstance(last_user_message.content, str):
                 messages_for_api.append({"role": "user", "content": last_user_message.content})
-                # print(f"  - Using last user message for translation: '{last_user_message.content[:100]}...'") # コメントアウト
+                # print(f"  - Using last user message for translation: '{last_user_message.content[:100]}...'")
             else:
                 print("エラー: 翻訳のためのユーザーメッセージが見つかりません。") # エラーログは残す
                 raise HTTPException(status_code=400, detail="翻訳のためのユーザーメッセージが必要です。")
@@ -245,9 +245,9 @@ async def chat(request: ChatRequest):
             for msg in request.messages:
                 if isinstance(msg.content, str):
                     messages_for_api.append({"role": msg.role, "content": msg.content})
-                    # print(f"  - Role: {msg.role}, Content (first 100 chars): '{msg.content[:100]}...'") # コメントアウト
+                    # print(f"  - Role: {msg.role}, Content (first 100 chars): '{msg.content[:100]}...'")
                 else:
-                    # print(f"  - Warning: Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}") # コメントアウト
+                    # print(f"  - Warning: Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}")
                     pass # 警告はコメントアウト
 
         api_params = {
@@ -258,26 +258,26 @@ async def chat(request: ChatRequest):
             "top_p": top_p,
             "stream": stream,
         }
-        # print(f"API Parameters (excluding messages): { {k: v for k, v in api_params.items() if k != 'messages'} }") # コメントアウト
+        # print(f"API Parameters (excluding messages): { {k: v for k, v in api_params.items() if k != 'messages'} }")
 
         # Reasoning Format の設定
         if model_name in reasoning_supported_models and settings_key == "main_chat":
             reasoning_format_value = config.get("main_chat", {}).get("reasoning_format", "parsed")
             if reasoning_format_value in ["parsed", "raw", "hidden"]:
                  api_params["reasoning_format"] = reasoning_format_value
-                 # print(f"Reasoning Format: {reasoning_format_value}") # コメントアウト
+                 # print(f"Reasoning Format: {reasoning_format_value}")
             else:
                  api_params["reasoning_format"] = "parsed"
-                 # print(f"Warning: Invalid reasoning_format ('{reasoning_format_value}') in config. Using 'parsed'.") # コメントアウト
+                 # print(f"Warning: Invalid reasoning_format ('{reasoning_format_value}') in config. Using 'parsed'.")
 
         start_time = time.time()
 
         # ★ デバッグ用コードブロックは削除されました
 
-        # print("Calling Groq API...") # コメントアウト
+        # print("Calling Groq API...")
         completion = groq_client.chat.completions.create(**api_params)
         end_time = time.time()
-        # print(f"Groq API call finished in {end_time - start_time:.2f} seconds.") # コメントアウト
+        # print(f"Groq API call finished in {end_time - start_time:.2f} seconds.")
 
         response_message = completion.choices[0].message
         reasoning_content = getattr(response_message, 'reasoning', None)
@@ -289,7 +289,7 @@ async def chat(request: ChatRequest):
             tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None
         )
 
-        # print("--- Response Sent ---") # コメントアウト
+        # print("--- Response Sent ---")
         return response_data
 
     # --- エラーハンドリング (リクエスト処理中のエラー) ---
@@ -342,7 +342,7 @@ async def get_available_models():
              if default_model:
                  model_ids = [default_model] # デフォルトモデルのみ返す
 
-        # print(f"利用可能なモデルリストを返します: {model_ids}") # デバッグ用ログ (コメントアウト推奨)
+        # print(f"利用可能なモデルリストを返します: {model_ids}") # デバッグ用ログ
         return ModelListResponse(models=model_ids)
     except Exception as e:
         print(f"エラー: 利用可能なモデルリストの取得中にエラーが発生しました: {e}")
@@ -369,9 +369,9 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     reload_flag = os.getenv("RELOAD", "true").lower() == "true"
 
-    # print(f"バックエンドサーバーを http://{host}:{port} で起動します...") # コメントアウト
-    # print(f"リロード: {'有効' if reload_flag else '無効'}") # コメントアウト
-    # print(f"フロントエンドオリジン許可: {frontend_origins}") # コメントアウト
+    # print(f"バックエンドサーバーを http://{host}:{port} で起動します...")
+    # print(f"リロード: {'有効' if reload_flag else '無効'}")
+    # print(f"フロントエンドオリジン許可: {frontend_origins}")
 
     # Uvicorn をプログラム的に起動
     # access_log=False は指定しない (アクセスログは残す)

@@ -1,23 +1,20 @@
-// d:\Users\onisi\Documents\web-app-dev\frontend\src\hooks\useChat.js
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// --- Constants ---
-//const MAX_FILE_TEXT_LENGTH = 8000; // ファイル内容のプレビュー最大文字数 (現在は未使用)
+// --- 定数 ---
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // バックエンドAPIのURL
-const SUPPORTED_TEXT_EXTENSIONS = /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i; // サポートするテキストファイルの拡張子
+const SUPPORTED_TEXT_EXTENSIONS = /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i; // サポートするテキストファイルの拡張子正規表現
 
-// --- Initial State ---
-// チャットの初期メッセージ (必要に応じて変更)
-const initialMessages = [
-  // { role: 'assistant', content: 'こんにちは！どのようなご用件でしょうか？' }
-];
+// --- 初期状態 ---
+const initialMessages = []; // チャットの初期メッセージ (必要に応じて設定)
 
-// --- Helper Functions (File Processing) ---
+// --- ヘルパー関数 (ファイル処理) ---
 
 /**
- * Fileオブジェクトを読み込み、内容 (テキスト) とエラーを返すPromiseを生成
+ * Fileオブジェクトを非同期で読み込み、テキスト内容またはエラーを返すPromiseを生成します。
+ * テキストファイルのみをサポートします。
  * @param {File} file - 読み込むFileオブジェクト
- * @returns {Promise<{fileData: {type: string, text?: string, fileName: string}|null, error: string|null, fileName: string}>}
+ * @returns {Promise<{fileData: {type: 'text', text: string, fileName: string}|null, error: string|null, fileName: string}>}
+ *          読み込み結果。成功時は fileData にテキスト情報、失敗時は error にメッセージが含まれます。
  */
 const readFileAsPromise = (file) => {
   return new Promise((resolve) => {
@@ -25,19 +22,16 @@ const readFileAsPromise = (file) => {
     const fileType = file.type;
     const fileName = file.name;
 
+    // ファイル読み込み完了時の処理
     reader.onload = (e) => {
       const fileContent = e.target.result;
       let fileData = null;
       let error = null;
       try {
-        // 画像ファイルの場合 (コメントアウト)
-        // if (fileType.startsWith('image/')) {
-        //   fileData = { type: "image_url", url: fileContent, fileName: fileName };
         // テキストベースのファイルの場合 (拡張子でも判定)
-        /* } else */ if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
-          fileData = { type: "text", text: fileContent, fileName: fileName }; // テキストファイルのみ処理
+        if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
+          fileData = { type: "text", text: fileContent, fileName: fileName };
         } else {
-          // サポート外のファイル形式
           error = `サポートされていないファイル形式です (${fileType})`;
         }
       } catch (err) {
@@ -47,16 +41,14 @@ const readFileAsPromise = (file) => {
       resolve({ fileData, error, fileName });
     };
 
-    // ファイル読み込みエラーハンドリング
+    // ファイル読み込みエラー時の処理
     reader.onerror = (err) => {
       console.error(`File reading error for ${fileName}:`, err);
       resolve({ fileData: null, error: 'ファイル読み込みエラーが発生しました。', fileName });
     };
 
-    // ファイルの種類に応じて読み込み方法を分岐
-    // if (fileType.startsWith('image/')) { // 画像は扱わない (コメントアウト)
-    //   reader.readAsDataURL(file); // 画像はDataURLとして読み込む
-    /* } else */ if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
+    // テキストファイルとして読み込み開始 (サポート対象のみ)
+    if (fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName)) {
       reader.readAsText(file); // テキストはテキストとして読み込む
     } else {
       // サポート外の場合はエラーとして即時解決
@@ -66,51 +58,46 @@ const readFileAsPromise = (file) => {
 };
 
 /**
- * ファイル読み込み結果からUI表示用のメッセージオブジェクトを生成
- * @param {{fileData: object|null, error: string|null, fileName: string}} result - readFileAsPromiseの結果
- * @returns {object|null} UI用メッセージオブジェクト or null
+ * ファイル読み込み結果からUI表示用のメッセージオブジェクトを生成します。
+ * @param {{fileData: object|null, error: string|null, fileName: string}} result - readFileAsPromiseの解決値
+ * @returns {object|null} UI表示に適したメッセージオブジェクト、または無効な場合はnull
  */
 const createFileUiMessage = (result) => {
   const { fileData, error, fileName } = result;
   if (error) {
-    // エラーメッセージ
-    return { role: 'user', content: `[ファイル処理エラー: ${fileName}]`, isFileAttachment: false, error: error, sentToApi: true }; // エラーはAPIには送らないが、UI上は送信済み扱い
-  // } else if (fileData?.type === 'image_url') { // 画像は扱わない (コメントアウト)
-    // 画像添付メッセージ
-    // return { role: 'user', content: `[画像添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false }; // まだAPIには送っていない
+    // エラーメッセージを生成 (UI表示用、APIには送信しない)
+    return { role: 'user', content: `[ファイル処理エラー: ${fileName}]`, isFileAttachment: false, error: error, sentToApi: true };
   } else if (fileData?.type === 'text') {
-    // テキストファイル添付メッセージ
-    return { role: 'user', content: `[ファイル添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false }; // まだAPIには送っていない
+    // テキストファイル添付メッセージを生成 (UI表示用、API未送信状態)
+    return { role: 'user', content: `[ファイル添付: ${fileName}]`, isFileAttachment: true, fileData: fileData, sentToApi: false };
   }
   return null; // 有効なメッセージが生成されなかった場合
 };
 
 
-// --- Main Hook ---
+// --- メインフック ---
 const useChat = () => {
-  // --- State and Refs ---
-  const [messages, setMessages] = useState(initialMessages); // チャットメッセージの配列
-  const [input, setInput] = useState(''); // テキスト入力欄の内容
-  const [isLoading, setIsLoading] = useState(false); // API通信中などのローディング状態
-  const [error, setError] = useState(null); // エラーメッセージ
-  const messagesEndRef = useRef(null); // チャット末尾へのスクロール用Ref
-  const [isExpanding, setIsExpanding] = useState(false); // プロンプト拡張処理中の状態
-
-  // ★ モデル関連の State を変更
-  const [availableModels, setAvailableModels] = useState([]); // モデルIDのリスト (動的取得)
-  const [selectedModel, setSelectedModel] = useState(''); // 選択中のモデルID (初期値は空)
+  // --- StateとRef ---
+  const [messages, setMessages] = useState(initialMessages); // チャットメッセージ配列
+  const [input, setInput] = useState(''); // テキスト入力欄
+  const [isLoading, setIsLoading] = useState(false); // ローディング状態 (API通信など)
+  const [error, setError] = useState(null); // エラーメッセージ表示用
+  const messagesEndRef = useRef(null); // チャット末尾への自動スクロール用Ref
+  const [isExpanding, setIsExpanding] = useState(false); // 翻訳などの拡張処理中フラグ
+  const [availableModels, setAvailableModels] = useState([]); // 利用可能なモデルIDリスト
+  const [selectedModel, setSelectedModel] = useState(''); // 選択中のモデルID
   const [isModelsLoading, setIsModelsLoading] = useState(true); // モデルリスト取得中のローディング状態
 
-  // --- Effects ---
-  // メッセージが追加されたら最下部へスクロール
+  // --- Effect ---
+  // メッセージリストが更新されたら最下部へスクロール
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   useEffect(() => {
     scrollToBottom();
-  }, [messages]); // messages 配列が変更されるたびに実行
+  }, [messages]);
 
-  // ★ モデルリスト取得 Effect を追加
+  // コンポーネントマウント時に利用可能なモデルリストを取得
   useEffect(() => {
     const fetchModels = async () => {
       setIsModelsLoading(true); // ローディング開始
@@ -124,11 +111,10 @@ const useChat = () => {
         if (data.models && Array.isArray(data.models) && data.models.length > 0) {
           setAvailableModels(data.models); // 取得したモデルIDリストをセット
           setSelectedModel(data.models[0]); // リストの最初のモデルをデフォルト選択
-        } else {
+        } else { // モデルリストが空の場合
           console.warn("No available models received from backend or list is empty.");
           setAvailableModels([]); // 利用可能なモデルがない場合は空リスト
           setSelectedModel(''); // 選択も空に
-          // 必要であればエラーメッセージを設定
           // setError("利用可能なAIモデルが見つかりませんでした。");
         }
       } catch (err) {
@@ -145,45 +131,42 @@ const useChat = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // マウント時に一度だけ実行
 
-  // --- Helper Functions (Message Sending Logic) ---
+  // --- ヘルパー関数 (メッセージ送信ロジック) ---
 
   /**
-   * テキスト入力と保留中のファイル添付からAPI送信用コンテンツを構築
-   * @param {string} textInput - テキスト入力
-   * @param {Array<object>} pendingFileMessages - API未送信のファイル添付メッセージ
+   * テキスト入力と保留中のファイル添付からAPI送信用コンテンツ文字列を構築します。
+   * ファイル内容は全文含めます。
+   * @param {string} textInput - 現在のテキスト入力値
+   * @param {Array<object>} pendingFileMessages - API未送信のファイル添付UIメッセージ
    * @returns {string} API送信用コンテンツ文字列
    */
   const buildCombinedContent = (textInput, pendingFileMessages) => {
     let combinedContent = textInput;
+    // API未送信のファイルメッセージからファイルデータを抽出
     const filesToSend = pendingFileMessages.map(msg => msg.fileData).filter(Boolean);
 
     if (filesToSend.length > 0) {
+      // ファイル情報をマークダウン形式で結合
       const fileDescriptions = filesToSend.map(fileData => {
-        // if (fileData.type === 'image_url') { // 画像は扱わない (コメントアウト)
-          // 画像の場合はファイル名を記述 (Base64データは含めない)
-          // return `\n[添付画像: ${fileData.fileName || '名称不明'}]`;
-        /* } else */ if (fileData.type === 'text') {
-          // テキストファイルの場合は内容を全文結合
-          const truncatedText = fileData.text; // ★ 制限を解除
-          // const truncatedText = fileData.text.length > MAX_FILE_TEXT_LENGTH // 元のコード (プレビュー)
-          //   ? fileData.text.substring(0, MAX_FILE_TEXT_LENGTH) + '... (省略)'
-          //   : fileData.text;
-          return `\n[添付ファイル: ${fileData.fileName || '名称不明'}]\n\`\`\`\n${truncatedText}\n\`\`\``;
+        if (fileData.type === 'text') {
+          // テキストファイルの内容をコードブロックとして追加
+          return `\n[添付ファイル: ${fileData.fileName || '名称不明'}]\n\`\`\`\n${fileData.text}\n\`\`\``;
         }
         return ''; // 未知のタイプは無視
       }).join('');
-      combinedContent += fileDescriptions; // テキスト入力の後ろにファイル情報を追加
+      combinedContent += fileDescriptions; // テキスト入力の後ろに追加
     }
     return combinedContent;
   };
 
   /**
-   * API送信前にUIを更新 (ユーザーメッセージを追加し、送信済みフラグを立てる)
-   * @param {string} textInput - テキスト入力
-   * @param {Array<object>} pendingFileMessages - API未送信のファイル添付メッセージ
+   * API送信直前にUIを更新します。
+   * 新しいユーザーメッセージ(テキスト/ファイル)を追加し、送信対象のメッセージの sentToApi フラグを true にします。
+   * @param {string} textInput - 現在のテキスト入力値
+   * @param {Array<object>} pendingFileMessages - API未送信のファイル添付UIメッセージ
    * @param {Array<object>} currentMessages - 現在のメッセージ配列
    * @param {Function} setMessages - messages state 更新関数
-   * @returns {Array<object>} 更新後のメッセージ配列
+   * @returns {Array<object>} UI更新後のメッセージ配列
    */
   const updateUiBeforeSend = (textInput, pendingFileMessages, currentMessages, setMessages) => {
     let updatedMessages = [...currentMessages];
@@ -195,49 +178,52 @@ const useChat = () => {
     // 今回送信するテキストメッセージとファイル添付メッセージの sentToApi フラグを true に更新
     const finalMessages = updatedMessages.map(msg =>
       (msg.role === 'user' && !msg.sentToApi && (msg.content === textInput || pendingFileMessages.some(pfm => pfm.fileData === msg.fileData)))
-        ? { ...msg, sentToApi: true }
+        ? { ...msg, sentToApi: true } // 送信済みフラグを立てる
         : msg
     );
-    setMessages(finalMessages); // UIを更新
-    return finalMessages; // 更新後のメッセージ配列を返す
+    setMessages(finalMessages); // UIを即時更新
+    return finalMessages; // 更新後のメッセージ配列を返す (API準備用)
   };
 
   /**
-   * APIに送信するためのメッセージ履歴を準備 (履歴制限付き)
+   * APIに送信するためのメッセージ履歴配列を準備します (履歴件数制限あり)。
    * @param {Array<object>} pastMessagesOnly - 過去のメッセージのみを含む配列 (今回のユーザー入力は除外済み)
    * @param {string} combinedContent - buildCombinedContentで生成された今回のユーザー入力コンテンツ
-   * @returns {Array<object>} API送信用メッセージ配列
+   * @returns {Array<object>} API送信用に整形されたメッセージ配列 (role, content のみ)
    */
   const prepareApiMessages = (pastMessagesOnly, combinedContent) => {
-    const MAX_HISTORY_PAIRS = 5;
-    const MAX_API_MESSAGES = MAX_HISTORY_PAIRS * 2;
+    const MAX_HISTORY_PAIRS = 5; // 保持する会話の往復数
+    const MAX_API_MESSAGES = MAX_HISTORY_PAIRS * 2; // APIに含める最大メッセージ数
 
-    // ★ フィルタリング条件を修正:
-    // ユーザーメッセージは sentToApi をチェックせず、ファイル添付自体でなければ含める (デバッグ目的)
+    // API履歴に含める過去メッセージをフィルタリング
     const relevantPastMessages = pastMessagesOnly.filter(msg => {
       if (msg.hidden) return false; // 非表示は除外
 
       if (msg.role === 'user') {
-        // ★★★ 修正点: sentToApi のチェックを一時的に削除 ★★★
-        // ユーザーメッセージ: ファイル添付自体でないものを含める
+        // ユーザーメッセージ: ファイル添付メッセージ自体は履歴に含めない
         return !msg.isFileAttachment;
       } else if (msg.role === 'assistant') {
-        // アシスタントメッセージ: content が文字列であれば含める (sentToApi は問わない)
+        // アシスタントメッセージ: content が文字列であれば含める
         return typeof msg.content === 'string';
       }
       return false; // その他のロールは除外
     });
 
-    // --- 以降の処理 (履歴件数制限、マッピング、結合) は変更なし ---
+    // 最新のメッセージから指定件数分を取得
     const limitedPastMessages = relevantPastMessages.slice(-MAX_API_MESSAGES);
+    // APIに必要な形式 (role, content) にマッピング
     const pastMessagesForApi = limitedPastMessages.map(msg => ({
         role: msg.role,
         content: msg.content
     }));
+
+    // 今回のユーザー入力をAPI形式で作成
     let currentMessageForApi = null;
     if (combinedContent) {
       currentMessageForApi = { role: 'user', content: combinedContent };
     }
+
+    // 過去の履歴と今回の入力を結合
     const messagesForApi = [...pastMessagesForApi];
     if (currentMessageForApi) {
       messagesForApi.push(currentMessageForApi);
@@ -252,12 +238,13 @@ const useChat = () => {
   };
 
   /**
-   * APIエラー発生時の処理 (エラー表示、UIロールバック)
+   * API呼び出しでエラーが発生した場合の処理。
+   * エラーメッセージをUIに表示し、送信試行したメッセージを未送信状態に戻します。
    * @param {Error} error - 発生したエラーオブジェクト
    * @param {Function} setError - error state 更新関数
    * @param {Function} setMessages - messages state 更新関数
    * @param {string} originalTextInput - 送信試行したテキスト入力
-   * @param {Array<object>} originalPendingFiles - 送信試行したファイル添付メッセージ
+   * @param {Array<object>} originalPendingFiles - 送信試行したファイル添付UIメッセージ
    */
   const handleApiError = (error, setError, setMessages, originalTextInput, originalPendingFiles) => {
     console.error("API処理エラー:", error);
@@ -269,8 +256,11 @@ const useChat = () => {
 
     // 送信に失敗したメッセージの sentToApi フラグを false に戻す (再送信可能にする)
     setMessages(prev => prev.map(msg => {
+      // 今回送信しようとしたテキストメッセージか？
       const isFailedText = msg.role === 'user' && msg.sentToApi === true && msg.content === originalTextInput && !msg.isFileAttachment;
+      // 今回送信しようとしたファイル添付メッセージか？
       const isFailedFile = msg.role === 'user' && msg.sentToApi === true && msg.isFileAttachment && originalPendingFiles.some(pfm => pfm.fileData === msg.fileData);
+      // 該当すれば sentToApi を false に戻す
       if (isFailedText || isFailedFile) {
         return { ...msg, sentToApi: false };
       }
@@ -279,10 +269,11 @@ const useChat = () => {
   };
 
 
-  // --- Core Functions ---
+  // --- コア関数 ---
 
   /**
-   * メッセージを送信するメイン関数
+   * メッセージ送信処理のメイン関数。
+   * テキスト入力と未送信ファイルを結合し、APIに送信して応答を処理します。
    */
   const handleSend = useCallback(async () => {
     // API未送信のファイル添付メッセージを取得
@@ -290,7 +281,7 @@ const useChat = () => {
     // 現在のテキスト入力 (前後の空白を除去)
     const currentInput = input.trim();
 
-    // ★ selectedModel が空 (未選択/取得失敗) の場合も送信不可にする
+    // 送信条件チェック: 入力もファイルもなく、処理中でもなく、モデル未選択/ロード中でもないこと
     if ((!currentInput && pendingFileMessages.length === 0) || isLoading || isModelsLoading || !selectedModel) {
       if (process.env.NODE_ENV === 'development') {
         console.log("送信条件未達:", { currentInput, pendingFileMessages: pendingFileMessages.length, isLoading, isModelsLoading, selectedModel });
@@ -299,48 +290,44 @@ const useChat = () => {
       if (!isLoading && (isModelsLoading || !selectedModel)) {
           setError("送信前にモデルを選択してください (ロード中または利用不可)。");
       }
-      return;
+      return; // 送信しない
     }
 
     setIsLoading(true); // ローディング開始
     setError(null); // エラー表示をクリア
 
-    // 1. API送信用コンテンツ作成
+    // 1. API送信用コンテンツ作成 (テキスト + ファイル内容)
     const combinedContent = buildCombinedContent(currentInput, pendingFileMessages);
 
     // 2. UI更新 (ユーザーメッセージ追加、送信済みフラグ更新)
+    //    updateUiBeforeSend は更新後のメッセージ配列を返す
     const updatedMessages = updateUiBeforeSend(currentInput, pendingFileMessages, messages, setMessages);
     setInput(''); // 入力欄をクリア
 
-    // ★★★ ここから修正 ★★★
     // 3. API送信準備 (API用のメッセージ履歴作成)
-
-    // prepareApiMessages に渡すための「過去の」メッセージ配列を作成
-    // updatedMessages から、今回の入力テキストとファイルに対応するメッセージを除外する
-    // (sentToApi が true になったばかりのメッセージを除外する)
+    //    prepareApiMessages に渡すための「過去の」メッセージ配列を作成する
+    //    (updatedMessages から、今回 sentToApi=true になったメッセージを除外する)
     const messagesForHistoryPreparation = updatedMessages.filter(msg => {
       const isCurrentTextMessage = msg.role === 'user' && msg.sentToApi === true && !msg.isFileAttachment && msg.content === currentInput;
       const isCurrentFileMessage = msg.role === 'user' && msg.sentToApi === true && msg.isFileAttachment && pendingFileMessages.some(pfm => pfm.fileData === msg.fileData);
-      // 今回のテキストメッセージでもファイルメッセージでも「ない」ものを残す
+      // 今回のテキスト/ファイルメッセージで「ない」ものを履歴準備用に残す
       return !(isCurrentTextMessage || isCurrentFileMessage);
     });
+    // 過去メッセージと今回のコンテンツからAPI送信用配列を作成
+    const messagesForApi = prepareApiMessages(messagesForHistoryPreparation, combinedContent);
 
-  // prepareApiMessages を呼び出す (過去のメッセージのみをフィルタリングした配列と、今回のコンテンツを渡す)
-  const messagesForApi = prepareApiMessages(messagesForHistoryPreparation, combinedContent);
-  // ★★★ ここまで修正 ★★★
-
-    // 送信するユーザーコンテンツがない場合は異常系として処理中断
+    // 送信するユーザーコンテンツがない場合は異常系 (通常発生しないはず)
     if (!messagesForApi.some(m => m.role === 'user')) {
        console.warn("送信するユーザーコンテンツがありません。UIをロールバックします。");
        setIsLoading(false);
-       setMessages(messages); // メッセージ履歴を元に戻す
-       setInput(currentInput); // 入力欄を元に戻す
+       setMessages(messages); // メッセージ履歴を送信前の状態に戻す
+       setInput(currentInput); // 入力欄を送信前の状態に戻す
        return;
     }
 
     // 4. API呼び出し & 応答処理
     try {
-      // APIに送信するリクエストボディ
+      // APIリクエストボディ
       const requestBody = {
         messages: messagesForApi,
         purpose: 'main_chat', // メインチャットであることを示す
@@ -352,14 +339,14 @@ const useChat = () => {
         console.log("Sending to API:", JSON.stringify(requestBody, null, 2));
       }
 
-      // バックエンドAPIにPOSTリクエストを送信
+      // バックエンドAPIにPOSTリクエスト
       const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
 
-      // 応答がエラーの場合
+      // API応答エラーハンドリング
       if (!response.ok) {
         let errorDetail = `HTTP error! status: ${response.status}`;
         let errorData = null;
@@ -373,7 +360,7 @@ const useChat = () => {
             } else if (typeof errorData.detail === 'string') {
               errorDetail = errorData.detail;
             } else {
-              errorDetail = JSON.stringify(errorData.detail);
+              errorDetail = JSON.stringify(errorData.detail); // 文字列以外はJSON化
             }
           } else if (errorData) {
             // その他のJSONエラー
@@ -386,7 +373,7 @@ const useChat = () => {
         }
         // エラーオブジェクトを作成してスロー
         const error = new Error(errorDetail);
-        error.responseDetails = errorData; // 詳細情報を付与
+        error.responseDetails = errorData; // 付加情報として保持
         throw error;
       }
 
@@ -396,8 +383,8 @@ const useChat = () => {
         ...prev,
         {
           role: 'assistant',
-          content: data.content,
-          reasoning: data.reasoning, // reasoning情報があれば追加
+          content: data.content, // 応答メッセージ本文
+          reasoning: data.reasoning, // reasoning情報 (あれば)
           tool_calls: data.tool_calls // tool_calls情報があれば追加
         },
       ]);
@@ -408,30 +395,33 @@ const useChat = () => {
     } finally {
       setIsLoading(false); // ローディング終了
     }
-  // ★ 依存配列に isModelsLoading を追加
+  // 依存配列: これらの値が変更されたら関数を再生成
   }, [messages, input, isLoading, selectedModel, isModelsLoading, setMessages, setError, setInput]);
 
   /**
-   * チャット履歴をクリアする関数 (フロントエンドのみ)
+   * チャット履歴をクリアする関数 (フロントエンドの状態のみクリア)。
    */
   const handleClearChat = useCallback(() => {
-    console.log('useChat: handleClearChat called - skipping confirmation'); // デバッグ用ログ更新
-    // 確認ダイアログを削除し、常にクリア処理を実行
+    if (process.env.NODE_ENV === 'development') {
+        console.log('useChat: handleClearChat called');
+    }
+    // 確認ダイアログは App.jsx 側で必要なら実装
     setMessages(initialMessages); // メッセージ履歴を初期状態に戻す
     setError(null); // エラー表示をクリア
     setIsLoading(false); // ローディング状態をリセット
     setIsExpanding(false); // 拡張状態をリセット
     setInput(''); // 入力欄をクリア
-  // 依存配列: これらの state setter が変更されることはないが、明示的に記述
+  // 依存配列: state setter は通常不変だが明示
   }, [setMessages, setError, setIsLoading, setIsExpanding, setInput]);
 
   /**
-   * ファイル選択イベントを処理する関数
-   * @param {Event} event - ファイル選択inputのchangeイベント
+   * ファイル選択 `<input type="file">` の変更イベントを処理する関数。
+   * 選択されたファイルを読み込み、UIメッセージとして追加します。
+   * @param {React.ChangeEvent<HTMLInputElement>} event - input要素のchangeイベント
    */
   const handleFileSelect = useCallback(async (event) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return; // ファイルが選択されていなければ何もしない
+    if (!files || files.length === 0) return; // ファイル未選択時は何もしない
 
     setIsLoading(true); // ローディング開始
     setError(null); // エラー表示をクリア
@@ -443,13 +433,13 @@ const useChat = () => {
       // 全てのファイル読み込み完了を待つ
       const results = await Promise.all(fileReadPromises);
       // 読み込み結果からUI用メッセージを生成 (エラー含む)
-      const newUiMessages = results.map(createFileUiMessage).filter(Boolean);
+      const newUiMessages = results.map(createFileUiMessage).filter(Boolean); // nullを除外
       // 新しいメッセージを既存のメッセージに追加
       if (newUiMessages.length > 0) {
         setMessages(prev => [...prev, ...newUiMessages]);
       }
     } catch (err) {
-      // Promise.all 自体のエラー (通常は発生しにくい)
+      // Promise.all 自体のエラー (通常はreadFileAsPromise内で処理されるはず)
       console.error("Error processing files with Promise.all:", err);
       setError("ファイル処理中に予期せぬエラーが発生しました。");
     } finally {
@@ -462,25 +452,25 @@ const useChat = () => {
   // 依存配列
   }, [setMessages, setIsLoading, setError]);
 
-  // --- Return Values ---
+  // --- フックの戻り値 ---
   // フックが外部に提供する値と関数
   return {
     messages,           // チャットメッセージ配列
     input,              // 入力欄の内容
     setInput,           // input state 更新関数
-    isLoading,          // ローディング状態
+    isLoading,          // ローディング状態 (API通信、ファイル処理など)
     error,              // エラーメッセージ
     setError,           // error state 更新関数
-    messagesEndRef,     // スクロール用Ref
+    messagesEndRef,     // 自動スクロール用Ref
     handleSend,         // メッセージ送信関数
-    handleClearChat,    // チャットクリア関数 (修正版)
+    handleClearChat,    // チャットクリア関数
     handleFileSelect,   // ファイル選択処理関数
     isExpanding,        // プロンプト拡張中フラグ
     setIsExpanding,     // isExpanding state 更新関数
     selectedModel,      // 選択中のモデルID
     setSelectedModel,   // selectedModel state 更新関数
-    availableModels,    // 利用可能なモデルIDのリスト (動的取得)
-    isModelsLoading,    // ★ モデルリスト取得中のローディング状態を追加
+    availableModels,    // 利用可能なモデルIDリスト
+    isModelsLoading,    // モデルリスト取得中のローディング状態
   };
 };
 

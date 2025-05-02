@@ -1,20 +1,17 @@
-// frontend/craco.config.js
 module.exports = {
   devServer: (devServerConfig, { env, paths, proxy, allowedHost }) => {
-    // setupMiddlewares を定義して、古いオプションが使われないようにする
+    // webpack-dev-server v4以降の互換性のために setupMiddlewares を定義
     devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-      // 既存のミドルウェアを返す
       return middlewares;
     };
 
-    // 念のため、古いオプションを削除
+    // 古いバージョンのオプションを削除 (互換性のため)
     delete devServerConfig.onAfterSetupMiddleware;
     delete devServerConfig.onBeforeSetupMiddleware;
 
-    // 変更した設定を返す
     return devServerConfig;
   },
-  // style: { // このセクション全体を削除またはコメントアウト
+  // style: { // postcss.config.js / tailwind.config.js で設定するため不要
   //   postcss: {
   //     plugins: [
   //       require('tailwindcss'),

@@ -1,12 +1,4 @@
-.gemini:
-@System_instructions.md
-
-backend:
-@main.py
-@config.json
-
-frontend:
-@App.jsx
-@useChat.js
-@ChatInput.jsx
-@Message.jsx
+@.gemini\System_instructions.md
+@backend\main.py
+@frontend\src\App.jsx
+@frontend\src\hooks\useChat.js

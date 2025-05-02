@@ -1,49 +1,41 @@
-// frontend/src/components/ChatInput.jsx
 import React, { useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-// lucide-react から必要なアイコンを一度にインポート
-import { Send, Languages, Paperclip, RotateCcw } from 'lucide-react'; // RotateCcw をインポート
+import { Send, Languages, Paperclip, RotateCcw } from 'lucide-react';
 
 const ChatInput = ({
   input,
-  // setInput, // App.jsx から handleInputChange を受け取るように変更
-  handleInputChange, // App.jsx から受け取る入力変更ハンドラ
+  handleInputChange, // 入力内容変更ハンドラ
   isLoading,
   isExpanding,
   handleSend,
-  handleTranslate, // App.jsx から受け取る翻訳/リセットハンドラ
-  handleFileSelect, // App.jsx から受け取る
-  isTranslated, // App.jsx から受け取る翻訳済み状態
+  handleTranslate, // 翻訳実行/リセットハンドラ
+  handleFileSelect, // ファイル選択ハンドラ
+  isTranslated, // 翻訳済みかどうかの状態
 }) => {
   const fileInputRef = useRef(null);
 
+  // ファイル選択ダイアログを開く関数
   const triggerFileSelect = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // 未使用の formatFileSize 関数を削除
   return (
     <footer className="bg-white dark:bg-dark-card p-4 shadow-inner sticky bottom-0 z-10">
-      {/* --- ▼ 添付ファイル表示エリアを削除 ▼ --- */}
-      {/* ファイル添付の状態は useChat フックの messages state で管理・表示されるため、ここでは不要 */}
-      {/* --- ▲ 添付ファイル表示エリアを削除 ▲ --- */}
-      {/* items-end でテキストエリアとボタンの下端を揃える */}
       <div className="flex items-end gap-2">
 
-        {/* ファイル入力要素 (非表示) */}
+        {/* ファイル選択用の非表示input要素 */}
         <input
           type="file"
           ref={fileInputRef}
-          onChange={handleFileSelect} // App.jsx から渡されたハンドラを使用
           className="hidden"
           multiple // 複数ファイル選択を許可
-          accept="text/*,.pdf,.doc,.docx" // 画像ファイルを除外し、テキスト、PDF、Word文書のみを許可する場合の例
-          disabled={isLoading || isExpanding} // ローディング中などは無効化
+          accept="text/*,.pdf,.doc,.docx" // 許可するファイルタイプ (例)
+          disabled={isLoading || isExpanding}
         />
 
-        {/* ファイルアップロードボタン */}
+        {/* ファイル添付ボタン */}
         <button
           onClick={triggerFileSelect}
           disabled={isLoading || isExpanding}
@@ -57,17 +49,15 @@ const ChatInput = ({
           <Paperclip className="w-5 h-5" />
         </button>
 
-        {/* TextareaAutosize (変更なし) */}
+        {/* 自動リサイズするテキストエリア */}
         <TextareaAutosize
           value={input}
-          // onChange={e => setInput(e.target.value)} // handleInputChange を使うように変更
-          onChange={e => handleInputChange(e.target.value)} // 修正: App.jsx のハンドラを呼び出す
+          onChange={e => handleInputChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
-              e.preventDefault(); // Enterキーのみで翻訳を実行しないように変更 (必要なら handleTranslate() を呼ぶ)
-              // handleTranslate(); // Enterキーで翻訳を実行したい場合はコメント解除
+              e.preventDefault(); // Enterのみでの送信/翻訳を防ぐ
             } else if (e.key === 'Enter' && e.ctrlKey) {
-              e.preventDefault(); // Ctrl+Enter で送信は維持
+              e.preventDefault(); // Ctrl+Enter で送信
               handleSend();
             }
           }}
@@ -80,14 +70,12 @@ const ChatInput = ({
           aria-label="メッセージ入力"
         />
 
-        {/* 翻訳ボタン (旧プロンプト拡張ボタン) */}
+        {/* 翻訳/リセットボタン */}
         <button
-          id="translate-button" // id を変更
-          onClick={handleTranslate} // 翻訳/リセットハンドラ
-          // ▼ 状態に応じて aria-label と title を変更 ▼
+          id="translate-button"
+          onClick={handleTranslate}
           aria-label={isTranslated ? "元のテキストに戻す" : "英語に翻訳"}
           title={isTranslated ? "元のテキストに戻す" : "入力内容を英語に翻訳"}
-          // ▼ 状態に応じてスタイル (色) を変更 ▼
           className={`p-2 rounded-lg text-gray-600 dark:text-gray-400 flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || !input.trim() || isExpanding
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50'
               : isTranslated
@@ -96,16 +84,14 @@ const ChatInput = ({
             }`}
           disabled={isLoading || !input.trim() || isExpanding}
         >
-          {/* ▼ 状態に応じてアイコンを変更 ▼ */}
+          {/* 状態に応じてアイコンを切り替え */}
           {isExpanding ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 dark:border-gray-100"></div>
             : isTranslated ? <RotateCcw className="w-5 h-5" /> : <Languages className="w-5 h-5" />}
         </button>
 
-        {/* 送信ボタン (変更なし) */}
+        {/* 送信ボタン */}
         <button
           onClick={handleSend}
-          // 送信ボタンは入力があれば有効にする (ファイル添付は useChat 側で判断)
-          // ★ 翻訳ボタンと同様に、入力がない場合は無効にする
           disabled={isLoading || !input.trim() || isExpanding} aria-label="送信 (Ctrl+Enter)"
           className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || !input.trim() || isExpanding
               ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
