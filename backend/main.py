@@ -184,9 +184,9 @@ async def chat(request: ChatRequest):
     # print(f"\n--- New Request Received (Purpose: {request.purpose}) ---") # コメントアウト
 
     # --- purpose に基づいて設定を選択 ---
-    if request.purpose == "expand_prompt":
-        settings_key = "prompt_expansion"
-        # print("Using 'prompt_expansion' settings from config.json") # コメントアウト
+    if request.purpose == "translate_to_english":
+        settings_key = "translate_to_english"
+        # print("Using 'translate_to_english' settings from config.json") # コメントアウト
     elif request.purpose == "main_chat":
         settings_key = "main_chat"
         # print("Using 'main_chat' settings from config.json") # コメントアウト
@@ -233,14 +233,14 @@ async def chat(request: ChatRequest):
             # print("Added system prompt.") # コメントアウト
 
         # print("Processing messages:") # コメントアウト
-        if request.purpose == "expand_prompt":
+        if request.purpose == "translate_to_english":
             last_user_message = next((msg for msg in reversed(request.messages) if msg.role == 'user'), None)
             if last_user_message and isinstance(last_user_message.content, str):
                 messages_for_api.append({"role": "user", "content": last_user_message.content})
-                # print(f"  - Using last user message for expansion: '{last_user_message.content[:100]}...'") # コメントアウト
+                # print(f"  - Using last user message for translation: '{last_user_message.content[:100]}...'") # コメントアウト
             else:
-                print("エラー: プロンプト拡張のためのユーザーメッセージが見つかりません。") # エラーログは残す
-                raise HTTPException(status_code=400, detail="プロンプト拡張のためのユーザーメッセージが必要です。")
+                print("エラー: 翻訳のためのユーザーメッセージが見つかりません。") # エラーログは残す
+                raise HTTPException(status_code=400, detail="翻訳のためのユーザーメッセージが必要です。")
         else: # main_chat
             for msg in request.messages:
                 if isinstance(msg.content, str):

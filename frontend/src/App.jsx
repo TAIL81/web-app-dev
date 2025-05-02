@@ -3,7 +3,7 @@
  * 修正: ファイル添付関連の state とハンドラを useChat フックに統合
  */
 import React, { useEffect, useCallback } from 'react'; // useState を削除
-import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react';
+import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react'; // 未使用の Languages を削除
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
@@ -44,8 +44,8 @@ function App() {
   }, [isDarkMode]);
   // --- /ダークモード関連 ---
 
-  // --- プロンプト拡張ボタンのハンドラー (変更なし) ---
-  const handleExpandPrompt = async () => {
+  // --- 翻訳ボタンのハンドラー (旧 handleExpandPrompt) ---
+  const handleTranslate = async () => {
     if (!input.trim() || isLoading || isExpanding) return;
     setIsExpanding(true);
     setError(null);
@@ -59,8 +59,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [{ role: 'user', content: input }],
-          purpose: 'expand_prompt',
-          // 拡張時は選択中のモデルではなく、設定ファイルで指定されたモデルを使う想定
+          purpose: 'translate_to_english', // purpose を変更
+          // 翻訳時は選択中のモデルではなく、設定ファイルで指定されたモデルを使う想定
           // model_name: selectedModel, // 必要であれば追加
         }),
       });
@@ -86,24 +86,24 @@ function App() {
             errorDetail = `APIエラー (${response.status}): ${response.statusText || '応答解析不可'}`;
         }
         throw new Error(errorDetail);
-      }
+      } // 翻訳結果を取得
       const data = await response.json();
-      const expandedPrompt = data.content || '';
-      if (expandedPrompt) {
-        setInput(expandedPrompt);
+      const translatedText = data.content || '';
+      if (translatedText) {
+        setInput(translatedText); // 入力欄を翻訳結果で更新
       } else {
-        console.warn("Received empty expanded prompt from backend:", data);
+        console.warn("Received empty translation from backend:", data);
         // ユーザーにフィードバックが必要な場合
-        // setError("プロンプトの拡張結果が空でした。");
+        // setError("翻訳結果が空でした。");
       }
     } catch (err) {
-      console.error("Error expanding prompt:", err);
-      setError(err instanceof Error ? err.message : 'プロンプトの拡張中に不明なエラーが発生しました。');
+      console.error("Error translating text:", err);
+      setError(err instanceof Error ? err.message : '翻訳中に不明なエラーが発生しました。'); // エラーメッセージを変更
     } finally {
       setIsExpanding(false);
     }
   };
-  // --- /プロンプト拡張ボタンのハンドラー ---
+  // --- /翻訳ボタンのハンドラー ---
 
   // モデル選択ハンドラ (変更なし)
   const handleModelChange = (event) => {
@@ -207,7 +207,7 @@ function App() {
             <Bot size={48} className="mb-4 text-gray-400 dark:text-gray-500" />
             <h2 className="text-xl font-semibold mb-2">こんにちは！</h2>
             <p className="mb-1">何でも聞いてくださいね。</p>
-            <p className="text-sm">下の入力欄にメッセージを入力して送信してください。</p>
+            <p className="text-sm">下の入力欄にして送信してください。</p>
             <p className="text-sm mt-4 flex items-center gap-1">
               <Info size={14} />
               ヒント: ファイルも添付できます。
@@ -253,7 +253,7 @@ function App() {
         isLoading={isLoading || isModelsLoading}
         isExpanding={isExpanding}
         handleSend={handleSend} // 修正: useChat の handleSend を渡す
-        handleExpandPrompt={handleExpandPrompt}
+        handleTranslate={handleTranslate} // 修正: 翻訳ハンドラを渡す
         handleFileSelect={handleFileSelect} // 修正: useChat の handleFileSelect を渡す
         // attachedFiles={attachedFiles} // 削除: App.jsx の state は使わない
         // handleRemoveFile={handleRemoveFile} // 削除: App.jsx のハンドラは使わない
