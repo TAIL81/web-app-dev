@@ -15,17 +15,11 @@ function App() {
     messagesEndRef,
     handleSend,
     handleClearChat: originalHandleClearChat, // useChat のクリア関数を別名で取得
-    isExpanding,
-    setIsExpanding,
     selectedModel,
     setSelectedModel,
     availableModels,
     isModelsLoading,
   } = useChat();
-
-  // --- 翻訳リセット機能用 State ---
-  const [originalInputBeforeTranslate, setOriginalInputBeforeTranslate] = React.useState(null);
-  // --- /翻訳リセット機能用 State ---
 
   // --- ダークモード関連 ---
   const [isDarkMode, setIsDarkMode] = React.useState(true); // デフォルトをダークモードに
@@ -35,86 +29,11 @@ function App() {
   }, [isDarkMode]);
   // --- /ダークモード関連 ---
 
-  // --- 翻訳ボタンのハンドラー ---
-  const handleTranslate = async () => {
-    // --- リセット処理 (翻訳済みの場合) ---
-    if (originalInputBeforeTranslate !== null) {
-      setInput(originalInputBeforeTranslate); // 元のテキストに戻す
-      setOriginalInputBeforeTranslate(null); // リセット状態を解除
-      return; // 処理終了
-    }
-
-    // --- 翻訳処理 (初回クリック時) ---
-    if (!input.trim() || isLoading || isExpanding) return; // 入力がない、または処理中は実行しない
-    setIsExpanding(true); // 翻訳処理中フラグを立てる
-    setError(null); // 既存のエラー表示をクリア
-    try {
-      // バックエンドURLを環境変数から取得、なければデフォルト値
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-      const apiUrl = `${backendUrl}/api/chat`; // APIエンドポイント
-      const textToTranslate = input; // API呼び出し前に現在の入力を保持
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: input }],
-          purpose: 'translate_to_english', // 翻訳用の purpose を指定
-          // 翻訳時はバックエンドの設定で指定されたモデルを使う想定
-        }),
-      });
-      if (!response.ok) {
-        // エラーレスポンスの詳細を取得試行
-        let errorDetail = `HTTP error! status: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            // FastAPI のエラー詳細など、より具体的な情報を取得試行
-            if (errorData && errorData.detail) {
-                if (Array.isArray(errorData.detail)) {
-                  errorDetail = errorData.detail.map(d => `[${d.loc?.join('->') || 'N/A'}]: ${d.msg || 'No message'}`).join('; ');
-                } else if (typeof errorData.detail === 'string') {
-                  errorDetail = errorData.detail;
-                } else {
-                  errorDetail = JSON.stringify(errorData.detail);
-                }
-            } else if (errorData && errorData.message) {
-                errorDetail = errorData.message; // 一般的なエラーメッセージ
-            }
-        } catch (jsonError) {
-            console.error("Error parsing translate error response:", jsonError);
-            errorDetail = `APIエラー (${response.status}): ${response.statusText || '応答解析不可'}`;
-        }
-        throw new Error(errorDetail);
-      }
-      // 翻訳結果を取得
-      const data = await response.json();
-      const translatedText = data.content || ''; // 応答から翻訳テキストを取得 (なければ空文字)
-
-      if (translatedText) {
-        setOriginalInputBeforeTranslate(textToTranslate); // 翻訳前のテキストを保存 (リセット用)
-        setInput(translatedText); // 入力欄を翻訳結果で更新
-      } else {
-        console.warn("Received empty translation from backend:", data);
-        setOriginalInputBeforeTranslate(null); // 翻訳失敗時はリセット状態にしない
-        // 必要ならユーザーにフィードバック (例: setError("翻訳結果が空でした。"))
-      }
-    } catch (err) {
-      setOriginalInputBeforeTranslate(null); // エラー発生時もリセット状態にしない
-      console.error("Error translating text:", err);
-      setError(err instanceof Error ? err.message : '翻訳中に不明なエラーが発生しました。');
-    } finally {
-      setIsExpanding(false); // 翻訳処理中フラグを解除
-    }
-  };
-  // --- /翻訳ボタンのハンドラー ---
-
   // --- 入力変更ハンドラ (手動変更時に翻訳リセット状態を解除) ---
   const handleInputChange = useCallback((newInput) => {
     setInput(newInput); // useChat の setInput を呼び出す
-    if (originalInputBeforeTranslate !== null) {
-      setOriginalInputBeforeTranslate(null); // 手動変更でリセット状態を解除
-    }
-  }, [setInput, originalInputBeforeTranslate]); // 依存配列を追加
+    // 翻訳リセットロジック削除
+  }, [setInput]); // 依存配列を修正
   // --- ▲ 入力変更ハンドラ ▲ ---
 
   // --- モデル選択ハンドラ ---
@@ -173,7 +92,7 @@ function App() {
                 id="model-select"
                 value={selectedModel}
                 onChange={handleModelChange}
-                disabled={isLoading || isExpanding || isModelsLoading || availableModels.length === 0}
+                disabled={isLoading || isModelsLoading || availableModels.length === 0} // isExpanding を削除
                 className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-2xl focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
                 title="バックエンドで設定可能なモデルを選択"
               >
@@ -196,7 +115,7 @@ function App() {
             aria-label="チャット履歴をクリア"
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-red-500 transition-colors"
             title="チャット履歴をクリア"
-            disabled={isLoading || isExpanding} // 処理中は無効化
+            disabled={isLoading} // isExpanding を削除
           >
             <Trash2 className="w-5 h-5 text-red-500 dark:text-red-400" aria-hidden="true" />
           </button>
@@ -237,7 +156,7 @@ function App() {
         ))}
 
         {/* メッセージ送受信中のローディング表示 */}
-        {isLoading && !isExpanding && ( // 通常の送受信時のみ表示 (翻訳中は専用表示なし)
+        {isLoading && ( // isExpanding チェックを削除
           <div
             className="flex justify-center items-center py-4"
             aria-live="polite"
@@ -269,10 +188,8 @@ function App() {
         input={input}
         handleInputChange={handleInputChange} // 入力変更ハンドラ
         isLoading={isLoading || isModelsLoading} // 通常の送信 or モデル読み込み中
-        isExpanding={isExpanding} // 翻訳処理中
         handleSend={handleSend} // メッセージ送信ハンドラ (useChat から)
-        handleTranslate={handleTranslate} // 翻訳ハンドラ
-        isTranslated={originalInputBeforeTranslate !== null} // 翻訳済み状態かを渡す
+        // 翻訳関連の props を削除
       />
     </div>
   );

@@ -31,7 +31,6 @@ const useChat = () => {
   const [isLoading, setIsLoading] = useState(false); // ローディング状態 (API通信など)
   const [error, setError] = useState(null); // エラーメッセージ表示用
   const messagesEndRef = useRef(null); // チャット末尾への自動スクロール用Ref
-  const [isExpanding, setIsExpanding] = useState(false); // 翻訳などの拡張処理中フラグ
   const [availableModels, setAvailableModels] = useState([]); // 利用可能なモデルIDリスト
   const [selectedModel, setSelectedModel] = useState(''); // 選択中のモデルID
   const [isModelsLoading, setIsModelsLoading] = useState(true); // モデルリスト取得中のローディング状態
@@ -198,7 +197,7 @@ const useChat = () => {
     const validFilesToUpload = uploadedFilesData.filter(f => f.type === 'text' && !f.error);
 
     // 送信条件チェック
-    if ((!currentInput && validFilesToUpload.length === 0) || isLoading || isModelsLoading || !selectedModel) {
+    if ((!currentInput && validFilesToUpload.length === 0) || isLoading || isModelsLoading || !selectedModel) { // isExpanding を削除
       if (process.env.NODE_ENV === 'development') {
         console.log("送信条件未達:", { currentInput, validFiles: validFilesToUpload.length, isLoading, isModelsLoading, selectedModel });
       }
@@ -305,7 +304,7 @@ const useChat = () => {
       // ファイルのプレビューもクリアしない（ユーザーが再試行できるように）
     } finally {
       setIsLoading(false); // ローディング終了
-    }
+    } // isExpanding の依存を削除
   // 依存配列: messages は直接使わないが、履歴更新のトリガーとして含める場合がある
   }, [input, isLoading, selectedModel, isModelsLoading, messages, setMessages, setError, setInput]);
 
@@ -319,10 +318,9 @@ const useChat = () => {
     setMessages(initialMessages);
     setError(null);
     setIsLoading(false);
-    setIsExpanding(false);
     setInput('');
     // ファイルプレビューのクリアは ChatInput 側で行う必要がある (clearFiles を呼ぶ)
-  }, [setMessages, setError, setIsLoading, setIsExpanding, setInput]);
+  }, [setMessages, setError, setIsLoading, setInput]);
 
 
   // --- フックの戻り値 ---
@@ -336,9 +334,6 @@ const useChat = () => {
     messagesEndRef,
     handleSend,
     handleClearChat,
-    // handleFileSelect は削除
-    isExpanding,
-    setIsExpanding,
     selectedModel,
     setSelectedModel,
     availableModels,

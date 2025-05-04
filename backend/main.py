@@ -55,9 +55,6 @@ def load_config_on_startup():
             if "main_chat" not in loaded_config:
                 # print(f"警告: 設定ファイルに 'main_chat' セクションが見つかりません。デフォルト値を使用します。")
                 loaded_config["main_chat"] = {} # 空の辞書で初期化
-            if "prompt_expansion" not in loaded_config:
-                # print(f"警告: 設定ファイルに 'prompt_expansion' セクションが見つかりません。デフォルト値を使用します。")
-                loaded_config["prompt_expansion"] = {} # 空の辞書で初期化
 
             # --- reasoning_supported_models のデフォルト値設定 (main_chat のみ) ---
             if "reasoning_supported_models" not in loaded_config.get("main_chat", {}):
@@ -184,10 +181,7 @@ async def chat(request: ChatRequest):
     # print(f"\n--- New Request Received (Purpose: {request.purpose}) ---")
 
     # --- purpose に基づいて設定を選択 ---
-    if request.purpose == "translate_to_english":
-        settings_key = "translate_to_english"
-        # print("Using 'translate_to_english' settings from config.json")
-    elif request.purpose == "main_chat":
+    if request.purpose == "main_chat":
         settings_key = "main_chat"
         # print("Using 'main_chat' settings from config.json")
     else:
@@ -233,16 +227,7 @@ async def chat(request: ChatRequest):
             # print("Added system prompt.")
 
         # print("Processing messages:")
-        if request.purpose == "translate_to_english":
-            last_user_message = next((msg for msg in reversed(request.messages) if msg.role == 'user'), None)
-            if last_user_message and isinstance(last_user_message.content, str):
-                messages_for_api.append({"role": "user", "content": last_user_message.content})
-                # print(f"  - Using last user message for translation: '{last_user_message.content[:100]}...'")
-            else:
-                print("エラー: 翻訳のためのユーザーメッセージが見つかりません。") # エラーログは残す
-                raise HTTPException(status_code=400, detail="翻訳のためのユーザーメッセージが必要です。")
-        else: # main_chat
-            for msg in request.messages:
+        for msg in request.messages: # main_chat の場合のみ実行される (他の purpose は現状ない)
                 if isinstance(msg.content, str):
                     messages_for_api.append({"role": msg.role, "content": msg.content})
                     # print(f"  - Role: {msg.role}, Content (first 100 chars): '{msg.content[:100]}...'")
