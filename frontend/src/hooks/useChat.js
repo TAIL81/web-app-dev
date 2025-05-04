@@ -293,7 +293,8 @@ const useChat = () => {
           role: 'assistant',
           content: data.content,
           reasoning: data.reasoning,
-          tool_calls: data.tool_calls
+          tool_calls: data.tool_calls,
+          executed_tools: data.executed_tools // ★ executed_tools をメッセージに追加
         },
       ]);
 

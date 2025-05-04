@@ -11,7 +11,7 @@ function App() {
     setInput,
     isLoading,
     error,
-    setError, // エラー設定用 (現在は useChat 内で使用)
+    // setError, // App.jsx では使用しないため削除
     messagesEndRef,
     handleSend,
     handleClearChat: originalHandleClearChat, // useChat のクリア関数を別名で取得

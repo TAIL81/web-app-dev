@@ -153,11 +153,19 @@ class ToolCall(BaseModel):
     type: str = "function"
     function: ToolCallFunction
 
+# ★ ExecutedTool に対応する Pydantic モデルを追加
+class ExecutedToolModel(BaseModel):
+    arguments: Optional[str] = None # JSON 文字列の場合がある
+    index: Optional[int] = None
+    type: Optional[str] = None # 'search' など
+    output: Optional[str] = None
+
 class ChatResponse(BaseModel):
     content: str
     reasoning: Optional[Any] = None
     tool_calls: Optional[List[ToolCall]] = None
-
+    # ★ executed_tools の型を修正
+    executed_tools: Optional[List[ExecutedToolModel]] = None
 # ★ モデルリスト取得用のレスポンスモデルを追加
 class ModelListResponse(BaseModel):
     models: List[str]
@@ -257,8 +265,6 @@ async def chat(request: ChatRequest):
 
         start_time = time.time()
 
-        # ★ デバッグ用コードブロックは削除されました
-
         # print("Calling Groq API...")
         completion = groq_client.chat.completions.create(**api_params)
         end_time = time.time()
@@ -267,11 +273,39 @@ async def chat(request: ChatRequest):
         response_message = completion.choices[0].message
         reasoning_content = getattr(response_message, 'reasoning', None)
         tool_calls_content = getattr(response_message, 'tool_calls', None)
+        raw_executed_tools = getattr(response_message, 'executed_tools', None) # 元の executed_tools を取得 (変数名変更)
+
+        # ★ executed_tools を Pydantic モデルのリストに変換 (ここに移動・修正)
+        executed_tools_for_response: Optional[List[ExecutedToolModel]] = None
+        if raw_executed_tools:
+            executed_tools_for_response = []
+            for tool in raw_executed_tools:
+                # Groq の ExecutedTool オブジェクトから辞書に変換し、Pydantic モデルでバリデーション
+                try:
+                    # ExecutedTool オブジェクトから属性を直接取得してモデルを作成
+                    validated_tool = ExecutedToolModel(
+                        arguments=getattr(tool, 'arguments', None),
+                        index=getattr(tool, 'index', None),
+                        type=getattr(tool, 'type', None),
+                        output=getattr(tool, 'output', None)
+                    )
+                    executed_tools_for_response.append(validated_tool)
+                except Exception as validation_error:
+                    print(f"警告: ExecutedTool のバリデーション中にエラー: {validation_error}")
+                    # エラーが発生しても処理を続行 (エラーのあるツールはスキップ)
+
+        # --- デバッグ用: executed_tools の内容をコンソールに出力 ---
+        if raw_executed_tools: # デバッグ出力は元のオブジェクトで行う
+            print(f"\n--- Executed Tools Detected ---")
+            print(raw_executed_tools)
+            print(f"--- End Executed Tools ---\n")
+        # --- /デバッグ用 ---
 
         response_data = ChatResponse(
             content=response_message.content or "",
             reasoning=reasoning_content if reasoning_content else None,
-            tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None
+            tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None,
+            executed_tools=executed_tools_for_response # ★ 変換後のリストをレスポンスに含めるように修正
         )
 
         # print("--- Response Sent ---")

@@ -2,13 +2,28 @@ import React, { useState, useEffect, useCallback } from 'react'; // useCallback 
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
-// LaTeXサポート用ライブラリ
+import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, Code } from 'lucide-react'; // Search, Code を追加// LaTeXサポート用ライブラリ
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css'; // KaTeXのCSSをインポート
 
 const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen';
+
+// --- ヘルパー関数: JSON文字列を安全にパース ---
+const safeJsonParse = (str) => {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return null; // パース失敗時は null を返す
+  }
+};
+
+// --- ヘルパー関数: ツールタイプに応じたアイコンを返す ---
+const getToolIcon = (type) => {
+  if (type === 'search') return <Search className="w-4 h-4 mr-1 inline-block text-blue-500 dark:text-blue-400 flex-shrink-0" />;
+  if (type === 'python') return <Code className="w-4 h-4 mr-1 inline-block text-green-500 dark:text-green-400 flex-shrink-0" />;
+  return <BrainCircuit className="w-4 h-4 mr-1 inline-block text-gray-500 dark:text-gray-400 flex-shrink-0" />; // デフォルトアイコン
+};
 
 const Message = ({ message }) => {
   // --- State and Hooks ---
@@ -138,6 +153,40 @@ const Message = ({ message }) => {
                </div>
              </div>
            )}
+
+          {/* ★ Executed Tools の表示 */}
+          {message.executed_tools && message.executed_tools.length > 0 && (
+            <div className="flex justify-start items-start mb-2 group">
+              {/* アイコンは最初のツールのタイプに合わせるか、固定アイコンにする */}
+              {getToolIcon(message.executed_tools[0].type)}
+              <div className={`w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-teal-50 dark:bg-teal-900/70 text-xs text-teal-800 dark:text-teal-200 break-words transition-colors duration-150 hover:bg-teal-100 dark:hover:bg-teal-800/80`}>
+                <p className="font-semibold mb-1">実行されたツール:</p>
+                <ul className="list-none pl-0 mt-1 space-y-1">
+                  {message.executed_tools.map((tool, index) => {
+                    const args = safeJsonParse(tool.arguments);
+                    return (
+                      <li key={index} className="flex items-start">
+                        {getToolIcon(tool.type)} {/* 各ツールにもアイコン表示 */}
+                        <span className="capitalize mr-1 font-medium">{tool.type || '不明'}:</span>
+                        {args ? (
+                          // 引数がJSONの場合、キーと値を表示 (例: query)
+                          Object.entries(args).map(([key, value]) => (
+                            <span key={key} className="mr-2 overflow-hidden text-ellipsis whitespace-nowrap">
+                              <span className="italic">{key}=</span>
+                              <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded">{String(value).substring(0, 50)}{String(value).length > 50 ? '...' : ''}</code>
+                            </span>
+                          ))
+                        ) : (
+                          // JSONでない場合はそのまま表示 (短縮)
+                          <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded overflow-hidden text-ellipsis whitespace-nowrap">{String(tool.arguments).substring(0, 50)}{String(tool.arguments).length > 50 ? '...' : ''}</code>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* AI 回答本文 */}
           <div className="flex justify-start items-start group">
