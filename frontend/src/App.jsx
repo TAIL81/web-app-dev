@@ -21,7 +21,6 @@ function App() {
     setSelectedModel,
     availableModels,
     isModelsLoading,
-    handleFileSelect,
   } = useChat();
 
   // --- 翻訳リセット機能用 State ---
@@ -271,9 +270,8 @@ function App() {
         handleInputChange={handleInputChange} // 入力変更ハンドラ
         isLoading={isLoading || isModelsLoading} // 通常の送信 or モデル読み込み中
         isExpanding={isExpanding} // 翻訳処理中
-        handleSend={handleSend} // メッセージ送信ハンドラ
+        handleSend={handleSend} // メッセージ送信ハンドラ (useChat から)
         handleTranslate={handleTranslate} // 翻訳ハンドラ
-        handleFileSelect={handleFileSelect} // ファイル選択ハンドラ
         isTranslated={originalInputBeforeTranslate !== null} // 翻訳済み状態かを渡す
       />
     </div>
