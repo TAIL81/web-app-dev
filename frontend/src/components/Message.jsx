@@ -5,7 +5,7 @@ import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism
 import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, Code } from 'lucide-react'; // Search, Code を追加// LaTeXサポート用ライブラリ
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css'; // KaTeXのCSSをインポート
+// import 'katex/dist/katex.min.css'; // KaTeXのCSSを一時的に無効化
 
 const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen';
 
@@ -133,9 +133,8 @@ const Message = ({ message }) => {
                   <span className="ml-auto text-gray-400 dark:text-gray-500">({isReasoningOpen ? '閉じる' : '表示'})</span>
                 </button>
                 <div
-                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
-                    isReasoningOpen ? 'max-h-96' : 'max-h-0'
-                  }`}
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-96' : 'max-h-0'
+                    }`}
                 >
                   <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
                     {message.reasoning}
@@ -147,37 +146,36 @@ const Message = ({ message }) => {
 
           {/* Agentic Tooling (Tool Calls) */}
           {message.tool_calls && message.tool_calls.length > 0 && (
-             <div className="flex items-start mb-2 group"> {/* flex items-start を適用 */}
-               {/* アイコン用コンテナ (固定幅 + 中央揃え) */}
-               <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
-                 <BrainCircuit className="w-6 h-6 text-yellow-500 dark:text-yellow-400 group-hover:text-yellow-600 dark:group-hover:text-yellow-300 transition-colors" />
-               </div>
-               <div className={`w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-yellow-100 dark:bg-yellow-900/70 text-xs text-yellow-800 dark:text-yellow-200 break-words`}>
-                 {/* ★ Tool Calls ヘッダーをボタンに変更 */}
-                 <button
-                   onClick={() => setIsToolCallsOpen(!isToolCallsOpen)}
-                   className="flex items-center text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-800 dark:hover:text-yellow-100 focus:outline-none w-full text-left mb-1"
-                   aria-expanded={isToolCallsOpen}
-                 >
-                   {isToolCallsOpen ? <ChevronUp size={16} className="mr-1 flex-shrink-0" /> : <ChevronDown size={16} className="mr-1 flex-shrink-0" />}
-                   <span className="font-semibold">ツール呼び出し</span>
-                   <span className="ml-auto text-yellow-600 dark:text-yellow-400">({isToolCallsOpen ? '閉じる' : '表示'})</span>
-                 </button>
-                 {/* ★ Tool Calls コンテンツ部分 */}
-                 <div
-                   className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
-                     isToolCallsOpen ? 'max-h-96' : 'max-h-0' // 必要に応じて max-h を調整
-                   }`}
-                 >
-                   <div className="border-t border-yellow-300 dark:border-yellow-700 pt-1 mt-1">
-                     {message.tool_calls.map((toolCall, index) => (
-                       <pre key={index} className="whitespace-pre-wrap font-mono text-xs mb-1 last:mb-0">{toolCall.function.name}({toolCall.function.arguments})</pre>
-                     ))}
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
+            <div className="flex items-start mb-2 group"> {/* flex items-start を適用 */}
+              {/* アイコン用コンテナ (固定幅 + 中央揃え) */}
+              <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
+                <BrainCircuit className="w-6 h-6 text-yellow-500 dark:text-yellow-400 group-hover:text-yellow-600 dark:group-hover:text-yellow-300 transition-colors" />
+              </div>
+              <div className={`w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-yellow-100 dark:bg-yellow-900/70 text-xs text-yellow-800 dark:text-yellow-200 break-words`}>
+                {/* ★ Tool Calls ヘッダーをボタンに変更 */}
+                <button
+                  onClick={() => setIsToolCallsOpen(!isToolCallsOpen)}
+                  className="flex items-center text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-800 dark:hover:text-yellow-100 focus:outline-none w-full text-left mb-1"
+                  aria-expanded={isToolCallsOpen}
+                >
+                  {isToolCallsOpen ? <ChevronUp size={16} className="mr-1 flex-shrink-0" /> : <ChevronDown size={16} className="mr-1 flex-shrink-0" />}
+                  <span className="font-semibold">ツール呼び出し</span>
+                  <span className="ml-auto text-yellow-600 dark:text-yellow-400">({isToolCallsOpen ? '閉じる' : '表示'})</span>
+                </button>
+                {/* ★ Tool Calls コンテンツ部分 */}
+                <div
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isToolCallsOpen ? 'max-h-96' : 'max-h-0' // 必要に応じて max-h を調整
+                    }`}
+                >
+                  <div className="border-t border-yellow-300 dark:border-yellow-700 pt-1 mt-1">
+                    {message.tool_calls.map((toolCall, index) => (
+                      <pre key={index} className="whitespace-pre-wrap font-mono text-xs mb-1 last:mb-0">{toolCall.function.name}({toolCall.function.arguments})</pre>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ★ Executed Tools の表示 */}
           {message.executed_tools && message.executed_tools.length > 0 && (
@@ -199,9 +197,8 @@ const Message = ({ message }) => {
                 </button>
                 {/* ★ Executed Tools コンテンツ部分 */}
                 <div
-                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
-                    isExecutedToolsOpen ? 'max-h-[40rem]' : 'max-h-0' // 必要に応じて max-h を調整 (コード表示用に大きめに)
-                  }`}
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isExecutedToolsOpen ? 'max-h-[40rem]' : 'max-h-0' // 必要に応じて max-h を調整 (コード表示用に大きめに)
+                    }`}
                 >
                   <div className="border-t border-teal-300 dark:border-teal-700 pt-1 mt-1">
                     <ul className="list-none pl-0 mt-1 space-y-2"> {/* space-y を少し増やす */}
@@ -258,17 +255,19 @@ const Message = ({ message }) => {
               <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             </div>
             <div className={`prose prose-sm max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow ${aiMessageBgColor} dark:prose-invert break-words w-full`}>
-              {message.content ? (
-                <ReactMarkdown
-                  components={markdownComponents}
-                  remarkPlugins={[remarkMath]} // remark-math プラグインを追加
-                  rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを追加
-                >
-                  {message.content}
-                </ReactMarkdown>
-              ) : (
-                !message.reasoning && (!message.tool_calls || message.tool_calls.length === 0) && "..."
-              )}
+              <div className="markdown-content">
+                {message.content ? (
+                  <ReactMarkdown
+                    components={markdownComponents}
+                    remarkPlugins={[remarkMath]} // remark-math プラグインを追加
+                    rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを追加
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  !message.reasoning && (!message.tool_calls || message.tool_calls.length === 0) && "..."
+                )}
+              </div>
             </div>
           </div>
         </div>
