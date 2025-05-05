@@ -134,7 +134,7 @@ function App() {
       {/* --- /ヘッダー --- */}
 
       {/* --- メインコンテンツ (チャット履歴) --- */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0"> {/* min-h-0 を追加 */}
         {/* 初期表示メッセージ */}
         {messages.length === 0 && !isLoading && !error && (
           <div className="flex flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 mt-10">

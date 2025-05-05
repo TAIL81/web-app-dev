@@ -1,3 +1,54 @@
+/* d:\Users\onisi\Documents\web-app-dev\frontend\src\index.css */
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+
+/* --- ここから下にカスタムスタイルを追加 --- */
+
+/* 
+   前回の提案で提示した CSS ルールをここに追加してください。
+   例:
+*/
+/* prose クラス内の h2 要素のスタイルを調整 */
+.prose h2 {
+  /* 高さをコンテンツに合わせて自動調整するように強制 */
+  height: auto !important;
+  /* 念のため、最大高さも設定 (任意) */
+  /* max-height: 10em; */ /* 例: 10行分程度の高さに制限 */
+
+  /* 上下のマージンも適切な値に調整 (prose のデフォルトを上書き) */
+  margin-top: 1.5em !important; /* 必要に応じて調整 */
+  margin-bottom: 0.8em !important; /* 必要に応じて調整 */
+}
+
+/* prose クラス内の h2 要素に含まれる KaTeX ブロック要素のマージンも調整 */
+.prose h2 .katex-display {
+  margin-block-start: 0.5em !important; /* 上マージン */
+  margin-block-end: 0.5em !important;   /* 下マージン */
+}
+
+/* KaTeX ブロック表示要素のマージンを調整 (h2 以外にも適用する場合) */
+.katex-display {
+  margin-block-start: 0 !important; /* 上マージン除去 */
+  margin-block-end: 0 !important;   /* 下マージン除去 */
+  overflow-x: auto; /* 水平方向にはみ出す場合はスクロール */
+  overflow-y: hidden; /* 垂直方向のはみ出しを隠す (問題があれば auto に) */
+  max-width: 100%; /* コンテナ幅を超えないように */
+}
+
+/* prose クラス内の KaTeX ブロック表示要素のマージンを調整 (h2 以外にも適用する場合) */
+.prose .katex-display {
+  margin-block-start: 0 !important; /* 上マージン除去 */
+  margin-block-end: 0 !important;   /* 下マージン除去 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+/* KaTeX 内部の垂直リスト要素の高さ問題を抑制する試み (必要に応じてコメント解除) */
+/*
+.katex .vlist {
+  display: inline-block;
+  vertical-align: baseline;
+}
+*/
