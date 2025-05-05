@@ -294,13 +294,6 @@ async def chat(request: ChatRequest):
                     print(f"警告: ExecutedTool のバリデーション中にエラー: {validation_error}")
                     # エラーが発生しても処理を続行 (エラーのあるツールはスキップ)
 
-        # --- デバッグ用: executed_tools の内容をコンソールに出力 ---
-        if raw_executed_tools: # デバッグ出力は元のオブジェクトで行う
-            print(f"\n--- Executed Tools Detected ---")
-            print(raw_executed_tools)
-            print(f"--- End Executed Tools ---\n")
-        # --- /デバッグ用 ---
-
         response_data = ChatResponse(
             content=response_message.content or "",
             reasoning=reasoning_content if reasoning_content else None,
