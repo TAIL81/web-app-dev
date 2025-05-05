@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { AlertCircle, Sun, Moon, Trash2, Bot, Loader2, Info } from 'lucide-react';
+import { AlertCircle, Sun, Moon, Trash2, Loader2 } from 'lucide-react';
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
@@ -135,20 +135,6 @@ function App() {
 
       {/* --- メインコンテンツ (チャット履歴) --- */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0"> {/* min-h-0 を追加 */}
-        {/* 初期表示メッセージ */}
-        {messages.length === 0 && !isLoading && !error && (
-          <div className="flex flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 mt-10">
-            <Bot size={48} className="mb-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
-            <h2 className="text-xl font-semibold mb-2">こんにちは！</h2>
-            <p className="mb-1">何でも聞いてくださいね。</p>
-            <p className="text-sm">下の入力欄にして送信してください。</p>
-            <p className="text-sm mt-4 flex items-center gap-1">
-              <Info size={14} />
-              ヒント: ファイルも添付できます。
-            </p>
-          </div>
-        )}
-
         {/* メッセージリスト */}
         {messages.map((msg, index) => (
           // メッセージに一意なIDが付与されている前提 (useChat.jsで対応)

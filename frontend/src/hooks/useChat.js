@@ -5,7 +5,9 @@ import { v4 as uuidv4 } from 'uuid'; // uuid をインポート
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // バックエンドAPIのURL
 
 // --- 初期状態 ---
-const initialMessages = []; // チャットの初期メッセージ (必要に応じて設定)
+const initialMessages = [
+  { id: uuidv4(), role: 'assistant', content: '本日はどのようなお手伝いをさせていただけますか？' }
+]; // チャットの初期メッセージ
 
 // --- ヘルパー関数 (ファイル内容読み込み) ---
 /**
@@ -316,7 +318,7 @@ const useChat = () => {
     if (process.env.NODE_ENV === 'development') {
         console.log('useChat: handleClearChat called');
     }
-    setMessages(initialMessages);
+    setMessages(initialMessages); // 初期メッセージの状態に戻す
     setError(null);
     setIsLoading(false);
     setInput('');
