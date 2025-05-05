@@ -96,7 +96,11 @@ const Message = ({ message }) => {
         </code>
       );
     },
-    p: ({ node, ...props }) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} />
+    // p: ({ node, ...props }) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} />
+    // <p> の代わりに <div> を使用してネストエラーを回避
+    // prose クラスが適用されているため、スタイルは維持されるはず
+    // 段落間のスペースを維持するために mb-4 (Tailwindのマージンクラス) を追加
+    p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div> // 最後の要素のマージンは削除
   };
 
   // --- Component Rendering ---
