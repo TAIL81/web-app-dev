@@ -18,6 +18,9 @@ config: Dict[str, Any] = {} # アプリケーション全体の設定を保持
 groq_client: Optional[Groq] = None # 初期化されたGroqクライアントを保持
 api_key: Optional[str] = None # APIキーを保持 (デバッグ用、通常は不要)
 
+# ★ executed_tools を reasoning に追加するかどうか (0: 無効, 1: 有効)
+# APPEND_EXECUTED_TOOLS_TO_REASONING = 0 # このフラグは不要になったため削除
+ 
 # --- FastAPI App Initialization ---
 app = FastAPI(
     title="Groq Chat API Backend",
@@ -271,12 +274,13 @@ async def chat(request: ChatRequest):
         # print(f"Groq API call finished in {end_time - start_time:.2f} seconds.")
 
         response_message = completion.choices[0].message
-        reasoning_content = getattr(response_message, 'reasoning', None)
+        original_reasoning = getattr(response_message, 'reasoning', None) # 元の reasoning を取得
         tool_calls_content = getattr(response_message, 'tool_calls', None)
         raw_executed_tools = getattr(response_message, 'executed_tools', None) # 元の executed_tools を取得 (変数名変更)
 
-        # ★ executed_tools を Pydantic モデルのリストに変換 (ここに移動・修正)
+        # ★ executed_tools を Pydantic モデルのリストに変換 (レスポンス用だが、reasoning 構築にも使う)
         executed_tools_for_response: Optional[List[ExecutedToolModel]] = None
+        # processed_tool_hashes = set() # 重複チェックロジック削除 (以前のステップで削除済みのはず)
         if raw_executed_tools:
             executed_tools_for_response = []
             for tool in raw_executed_tools:
@@ -294,9 +298,11 @@ async def chat(request: ChatRequest):
                     print(f"警告: ExecutedTool のバリデーション中にエラー: {validation_error}")
                     # エラーが発生しても処理を続行 (エラーのあるツールはスキップ)
 
+        # ★ reasoning は Groq API から返されたものをそのまま使用する ★
+
         response_data = ChatResponse(
-            content=response_message.content or "",
-            reasoning=reasoning_content if reasoning_content else None,
+            content=response_message.content or "", # content はそのまま
+            reasoning=original_reasoning if original_reasoning else None, # ★ 元の reasoning をそのままセット
             tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None,
             executed_tools=executed_tools_for_response # ★ 変換後のリストをレスポンスに含めるように修正
         )
