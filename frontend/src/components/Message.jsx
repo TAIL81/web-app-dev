@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react'; // useCallback を追加
+import React, { useState, useCallback } from 'react'; // useEffect を削除
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, Code } from 'lucide-react'; // Search, Code を追加// LaTeXサポート用ライブラリ
+import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, Code } from 'lucide-react'; // Search, Code を追加
 // LaTeXサポート用ライブラリ (今回は無効化)
 // import remarkMath from 'remark-math';
 // import rehypeKatex from 'rehype-katex';
 // import 'katex/dist/katex.min.css'; // KaTeXのCSSを一時的に無効化
 
-const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen';
+// const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen'; // localStorageを使用しないため削除
 
 // --- ヘルパー関数: JSON文字列を安全にパース ---
 const safeJsonParse = (str) => {
@@ -28,12 +28,9 @@ const getToolIcon = (type) => {
 
 const Message = ({ message }) => {
   // --- State and Hooks ---
-  const getInitialReasoningOpen = useCallback(() => { // 初期表示状態をlocalStorageから取得
-    const storedValue = localStorage.getItem(REASONING_OPEN_STORAGE_KEY);
-    return storedValue ? JSON.parse(storedValue) : false;
-  }, []);
+  // 初期表示状態をlocalStorageから取得するロジックを削除し、デフォルトで開くように変更
+  const [isReasoningOpen, setIsReasoningOpen] = useState(true); // デフォルトで開く
 
-  const [isReasoningOpen, setIsReasoningOpen] = useState(getInitialReasoningOpen);
   // ★ Executed Tools の開閉状態を追加
   const [isExecutedToolsOpen, setIsExecutedToolsOpen] = useState(false); // デフォルトは閉じる
   // ★ Tool Calls の開閉状態を追加 (同様のUIにするため)
@@ -41,9 +38,10 @@ const Message = ({ message }) => {
 
   const [copiedStates, setCopiedStates] = useState({});
 
-  useEffect(() => {
-    localStorage.setItem(REASONING_OPEN_STORAGE_KEY, JSON.stringify(isReasoningOpen));
-  }, [isReasoningOpen]);
+  // localStorageへの保存処理を削除
+  // useEffect(() => {
+  //   localStorage.setItem(REASONING_OPEN_STORAGE_KEY, JSON.stringify(isReasoningOpen));
+  // }, [isReasoningOpen]);
 
   // コードブロックのコピー処理
   const handleCopy = useCallback((codeToCopy, index) => {
@@ -121,9 +119,9 @@ const Message = ({ message }) => {
       {message.role === 'assistant' && (
         <div className="mb-4">
           {/* 思考プロセス (Reasoning) */}
-          {message.reasoning && message.reasoning !== "（Reasoningなし）" && (
-            <div className="flex items-start mb-2 group"> {/* flex items-start を適用 */}
-              {/* アイコン用コンテナ (固定幅 + 中央揃え) */}
+          {/* 思考プロセス (Reasoning, Plan, Criticism) */}
+          {(message.reasoning || message.plan || message.criticism) && (
+            <div className="flex items-start mb-2 group">
               <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
                 <BrainCircuit className="w-6 h-6 text-gray-400 dark:text-gray-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
               </div>
@@ -138,18 +136,39 @@ const Message = ({ message }) => {
                   <span className="ml-auto text-gray-400 dark:text-gray-500">({isReasoningOpen ? '閉じる' : '表示'})</span>
                 </button>
                 <div
-                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-[60rem]' : 'max-h-0' // 高さを 60rem (960px) に変更
-                    }`}
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-[40rem] overflow-y-auto' : 'max-h-0'}`}
                 >
-                  <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
-                    {message.reasoning}
-                  </pre>
+                  {/* 推論 */}
+                  {message.reasoning && (
+                    <div className="mb-3">
+                      <div className="font-bold text-gray-600 dark:text-gray-400">推論:</div>
+                      <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
+                        {message.reasoning}
+                      </pre>
+                    </div>
+                  )}
+                  {/* 行動計画 */}
+                  {message.plan && (
+                    <div className="mb-3">
+                      <div className="font-bold text-gray-600 dark:text-gray-400">行動計画:</div>
+                      <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
+                        {message.plan}
+                      </pre>
+                    </div>
+                  )}
+                  {/* 自己批判 */}
+                  {message.criticism && (
+                    <div className="mb-3">
+                      <div className="font-bold text-gray-600 dark:text-gray-400">自己批判:</div>
+                      <pre className="whitespace-pre-wrap font-reasoning border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
+                        {message.criticism}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
-
-          {/* コメントアウトされていた Tool Calls と Executed Tools の表示ブロックを完全に削除 */}
 
           {/* AI 回答本文 */}
           <div className="flex items-start group"> {/* flex items-start を適用 */}

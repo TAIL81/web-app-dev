@@ -274,19 +274,35 @@ async def chat(request: ChatRequest):
         # print(f"Groq API call finished in {end_time - start_time:.2f} seconds.")
 
         response_message = completion.choices[0].message
-        original_reasoning = getattr(response_message, 'reasoning', None) # 元の reasoning を取得
+        original_reasoning_data = getattr(response_message, 'reasoning', None) # 元の reasoning データを取得 (これはオブジェクトまたは辞書であると想定)
         tool_calls_content = getattr(response_message, 'tool_calls', None)
-        raw_executed_tools = getattr(response_message, 'executed_tools', None) # 元の executed_tools を取得 (変数名変更)
+        raw_executed_tools = getattr(response_message, 'executed_tools', None)
 
-        # ★ executed_tools を Pydantic モデルのリストに変換 (レスポンス用だが、reasoning 構築にも使う)
+        # reasoning データから各要素を抽出
+        reasoning_text = None
+        plan_text = None
+        criticism_text = None
+
+        if isinstance(original_reasoning_data, dict): # Groqのreasoningが辞書の場合
+            thoughts = original_reasoning_data.get("thoughts", {})
+            reasoning_text = thoughts.get("reasoning")
+            plan_text = thoughts.get("plan")
+            criticism_text = thoughts.get("criticism")
+        elif hasattr(original_reasoning_data, 'thoughts'): # Groqのreasoningがオブジェクトの場合
+            thoughts = getattr(original_reasoning_data, 'thoughts', None)
+            if thoughts:
+                reasoning_text = getattr(thoughts, 'reasoning', None)
+                plan_text = getattr(thoughts, 'plan', None)
+                criticism_text = getattr(thoughts, 'criticism', None)
+        elif isinstance(original_reasoning_data, str): # 単純な文字列の場合 (フォールバック)
+            reasoning_text = original_reasoning_data
+
+
         executed_tools_for_response: Optional[List[ExecutedToolModel]] = None
-        # processed_tool_hashes = set() # 重複チェックロジック削除 (以前のステップで削除済みのはず)
         if raw_executed_tools:
             executed_tools_for_response = []
             for tool in raw_executed_tools:
-                # Groq の ExecutedTool オブジェクトから辞書に変換し、Pydantic モデルでバリデーション
                 try:
-                    # ExecutedTool オブジェクトから属性を直接取得してモデルを作成
                     validated_tool = ExecutedToolModel(
                         arguments=getattr(tool, 'arguments', None),
                         index=getattr(tool, 'index', None),
@@ -296,15 +312,14 @@ async def chat(request: ChatRequest):
                     executed_tools_for_response.append(validated_tool)
                 except Exception as validation_error:
                     print(f"警告: ExecutedTool のバリデーション中にエラー: {validation_error}")
-                    # エラーが発生しても処理を続行 (エラーのあるツールはスキップ)
-
-        # ★ reasoning は Groq API から返されたものをそのまま使用する ★
 
         response_data = ChatResponse(
-            content=response_message.content or "", # content はそのまま
-            reasoning=original_reasoning if original_reasoning else None, # ★ 元の reasoning をそのままセット
+            content=response_message.content or "",
+            reasoning=reasoning_text, # 抽出した reasoning テキスト
+            plan=plan_text,           # 抽出した plan テキスト
+            criticism=criticism_text, # 抽出した criticism テキスト
             tool_calls=[ToolCall.model_validate(tc.model_dump()) for tc in tool_calls_content] if tool_calls_content else None,
-            executed_tools=executed_tools_for_response # ★ 変換後のリストをレスポンスに含めるように修正
+            executed_tools=executed_tools_for_response
         )
 
         # print("--- Response Sent ---")
