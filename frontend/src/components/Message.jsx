@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react'; // useEffect を削除
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, Code } from 'lucide-react'; // Search, Code を追加
+import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 // LaTeXサポート用ライブラリ (今回は無効化)
 // import remarkMath from 'remark-math';
 // import rehypeKatex from 'rehype-katex';
@@ -10,31 +10,10 @@ import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check, Search, C
 
 // const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen'; // localStorageを使用しないため削除
 
-// --- ヘルパー関数: JSON文字列を安全にパース ---
-const safeJsonParse = (str) => {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return null; // パース失敗時は null を返す
-  }
-};
-
-// --- ヘルパー関数: ツールタイプに応じたアイコンを返す ---
-const getToolIcon = (type) => {
-  if (type === 'search') return <Search className="w-4 h-4 mr-1 inline-block text-blue-500 dark:text-blue-400 flex-shrink-0" />;
-  if (type === 'python') return <Code className="w-4 h-4 mr-1 inline-block text-green-500 dark:text-green-400 flex-shrink-0" />;
-  return <BrainCircuit className="w-4 h-4 mr-1 inline-block text-gray-500 dark:text-gray-400 flex-shrink-0" />; // デフォルトアイコン
-};
-
 const Message = ({ message }) => {
   // --- State and Hooks ---
   // 初期表示状態をlocalStorageから取得するロジックを削除し、デフォルトで開くように変更
   const [isReasoningOpen, setIsReasoningOpen] = useState(true); // デフォルトで開く
-
-  // ★ Executed Tools の開閉状態を追加
-  const [isExecutedToolsOpen, setIsExecutedToolsOpen] = useState(false); // デフォルトは閉じる
-  // ★ Tool Calls の開閉状態を追加 (同様のUIにするため)
-  const [isToolCallsOpen, setIsToolCallsOpen] = useState(false); // デフォルトは閉じる
 
   const [copiedStates, setCopiedStates] = useState({});
 
@@ -136,7 +115,7 @@ const Message = ({ message }) => {
                   <span className="ml-auto text-gray-400 dark:text-gray-500">({isReasoningOpen ? '閉じる' : '表示'})</span>
                 </button>
                 <div
-                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-[40rem] overflow-y-auto' : 'max-h-0'}`}
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-[20rem] overflow-y-auto' : 'max-h-0'}`}
                 >
                   {/* 推論 */}
                   {message.reasoning && (
@@ -181,8 +160,8 @@ const Message = ({ message }) => {
                 {message.content ? (
                   <ReactMarkdown
                     components={markdownComponents}
-                    // remarkPlugins={[remarkMath]} // remark-math プラグインを削除
-                    // rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを削除
+                  // remarkPlugins={[remarkMath]} // remark-math プラグインを削除
+                  // rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを削除
                   >
                     {message.content}
                   </ReactMarkdown>
