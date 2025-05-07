@@ -12,15 +12,11 @@ import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lu
 
 const Message = ({ message }) => {
   // --- State and Hooks ---
-  // 初期表示状態をlocalStorageから取得するロジックを削除し、デフォルトで開くように変更
-  const [isReasoningOpen, setIsReasoningOpen] = useState(true); // デフォルトで開く
+  // 初期状態を閉じた状態に変更
+  const [isReasoningOpen, setIsReasoningOpen] = useState(false); // デフォルトで閉じる
 
   const [copiedStates, setCopiedStates] = useState({});
 
-  // localStorageへの保存処理を削除
-  // useEffect(() => {
-  //   localStorage.setItem(REASONING_OPEN_STORAGE_KEY, JSON.stringify(isReasoningOpen));
-  // }, [isReasoningOpen]);
 
   // コードブロックのコピー処理
   const handleCopy = useCallback((codeToCopy, index) => {
