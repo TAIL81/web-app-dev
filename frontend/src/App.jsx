@@ -51,52 +51,45 @@ function App() {
 
   return (
     <div className="flex flex-row h-screen bg-gray-100 dark:bg-dark-background">
-      {/* --- 左サイドバー（ヘッダー） --- */}
-      <header className="w-64 flex-shrink-0 bg-white dark:bg-dark-card p-4 shadow dark:shadow-md flex flex-col gap-4 overflow-y-auto">
-        {/* タイトルとバッジ (変更なし) */}
-        <div className="flex-shrink-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-dark-text">Groq チャットボット</h1>
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">日本語でチャット！</p>
-            <a
-              href="https://groq.com"
-              target="_blank" // 新しいタブで開く
-              rel="noopener noreferrer"
-              title="Powered by Groq for fast inference."
-            >
-              <img
+      {/* --- 左サイドバー --- */}
+      <aside className="w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+        {/* タイトルバー */}
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+          <div className="flex-shrink-0">
+            <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+              <img 
                 src="https://groq.com/wp-content/uploads/2024/03/PBG-mark1-color.svg"
-                alt="Powered by Groq" // より簡潔なaltテキスト
-                className="h-4"
+                alt="Groqロゴ"
+                className="h-6 w-6 hover:opacity-75 transition-opacity"
               />
-            </a>
+              <span>チャットボット</span>
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">日本語でチャット！</p>
           </div>
         </div>
 
-        {/* モデル選択とボタン類 */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* モデル選択 (変更なし) */}
-          <div className="flex items-center">
-            <label htmlFor="model-select" className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
-              モデル:
+        {/* コントロールエリア */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {/* モデル選択 */}
+          <div className="space-y-2">
+            <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              モデル選択
             </label>
             {isModelsLoading ? (
-              // モデル読み込み中表示
-              <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400 min-w-[180px] sm:min-w-[220px]">
+              <div className="flex items-center justify-center p-2 gap-2 text-gray-500 dark:text-gray-400">
                 <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-                <span className="text-sm">モデルを読み込み中...</span>
+                <span className="text-sm">読み込み中...</span>
               </div>
             ) : (
-              // モデル選択肢
               <select
                 id="model-select"
                 value={selectedModel}
                 onChange={handleModelChange}
-                disabled={isLoading || isModelsLoading || availableModels.length === 0} // isExpanding を削除
-                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-2xl focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:opacity-50 min-w-[180px] sm:min-w-[220px]"
-                title="バックエンドで設定可能なモデルを選択"
+                disabled={isLoading || availableModels.length === 0}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:focus:border-blue-500 dark:focus:ring-blue-500/50 disabled:opacity-50"
+                title="使用するAIモデルを選択"
               >
-                {availableModels.length === 0 && !isModelsLoading ? (
+                {availableModels.length === 0 ? (
                   <option value="" disabled>利用可能なモデルなし</option>
                 ) : (
                   availableModels.map((modelId) => (
@@ -109,75 +102,80 @@ function App() {
             )}
           </div>
 
-          {/* クリアボタン */}
-          <button
-            onClick={handleClearChat} // 修正済みのハンドラを使用
-            aria-label="チャット履歴をクリア"
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-red-500 transition-colors"
-            title="チャット履歴をクリア"
-            disabled={isLoading} // isExpanding を削除
-          >
-            <Trash2 className="w-5 h-5 text-red-500 dark:text-red-400" aria-hidden="true" />
-          </button>
+          {/* ボタングループ */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleClearChat}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              disabled={isLoading}
+              title="チャット履歴をクリア"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>クリア</span>
+            </button>
 
-          {/* ダークモード切り替えボタン */}
-          <button
-            onClick={toggleDarkMode}
-            aria-label={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 transition-colors"
-            title={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
-          </button>
+            <button
+              onClick={toggleDarkMode}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
+              title={isDarkMode ? "ライトモード" : "ダークモード"}
+            >
+              {isDarkMode ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+              <span>テーマ</span>
+            </button>
+          </div>
         </div>
-      </header>
-      {/* --- /ヘッダー --- */}
+      </aside>
+      {/* --- /左サイドバー --- */}
 
       {/* --- 右ペイン（メインコンテンツ + 入力欄） --- */}
       <div className="flex-1 flex flex-col">
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-        {/* メッセージリスト */}
-        {messages.map((msg, index) => (
-          // メッセージに一意なIDが付与されている前提 (useChat.jsで対応)
-          <Message key={msg.id || index} message={msg} /> // key に msg.id を使用 (フォールバックとして index)
-        ))}
+          {/* メッセージリスト */}
+          {messages.map((msg, index) => (
+            // メッセージに一意なIDが付与されている前提 (useChat.jsで対応)
+            <Message key={msg.id || index} message={msg} /> // key に msg.id を使用 (フォールバックとして index)
+          ))}
 
-        {/* メッセージ送受信中のローディング表示 */}
-        {isLoading && ( // isExpanding チェックを削除
-          <div
-            className="flex justify-center items-center py-4"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              <span>応答を生成中...</span>
+          {/* メッセージ送受信中のローディング表示 */}
+          {isLoading && ( // isExpanding チェックを削除
+            <div
+              className="flex justify-center items-center py-4"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                <span>応答を生成中...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* エラー表示 */}
-        {error && (
-          <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-2xl mb-4 shadow-sm" role="alert">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" aria-hidden="true" />
-            <p className="text-red-600 dark:text-red-400 text-sm font-medium break-words max-w-full">
-              エラー: {error}
-            </p>
-          </div>
-        )}
-        {/* スクロール位置調整用の空div */}
-        <div ref={messagesEndRef} />
-      </main>
-      {/* --- /メインコンテンツ --- */}
+          {/* エラー表示 */}
+          {error && (
+            <div className="flex justify-center items-center gap-2 p-3 bg-red-100/90 dark:bg-red-900/50 rounded-2xl mb-4 shadow-sm" role="alert">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" aria-hidden="true" />
+              <p className="text-red-600 dark:text-red-400 text-sm font-medium break-words max-w-full">
+                エラー: {error}
+              </p>
+            </div>
+          )}
+          {/* スクロール位置調整用の空div */}
+          <div ref={messagesEndRef} />
+        </main>
+        {/* --- /メインコンテンツ --- */}
 
         {/* --- 入力欄 --- */}
         <ChatInput
-        input={input}
-        handleInputChange={handleInputChange} // 入力変更ハンドラ
-        isLoading={isLoading || isModelsLoading} // 通常の送信 or モデル読み込み中
-        handleSend={handleSend} // メッセージ送信ハンドラ (useChat から)
-      // 翻訳関連の props を削除
-      />
+          input={input}
+          handleInputChange={handleInputChange} // 入力変更ハンドラ
+          isLoading={isLoading || isModelsLoading} // 通常の送信 or モデル読み込み中
+          handleSend={handleSend} // メッセージ送信ハンドラ (useChat から)
+        // 翻訳関連の props を削除
+        />
       </div>
     </div>
   );
