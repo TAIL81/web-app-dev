@@ -50,9 +50,9 @@ function App() {
   // --- /チャット履歴クリアハンドラ ---
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-dark-background">
-      {/* --- ヘッダー --- */}
-      <header className="bg-white dark:bg-dark-card p-4 shadow dark:shadow-md sticky top-0 z-10 flex justify-between items-center flex-wrap gap-2">
+    <div className="flex flex-row h-screen bg-gray-100 dark:bg-dark-background">
+      {/* --- 左サイドバー（ヘッダー） --- */}
+      <header className="w-64 flex-shrink-0 bg-white dark:bg-dark-card p-4 shadow dark:shadow-md flex flex-col gap-4 overflow-y-auto">
         {/* タイトルとバッジ (変更なし) */}
         <div className="flex-shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-dark-text">Groq チャットボット</h1>
@@ -97,13 +97,13 @@ function App() {
                 title="バックエンドで設定可能なモデルを選択"
               >
                 {availableModels.length === 0 && !isModelsLoading ? (
-                   <option value="" disabled>利用可能なモデルなし</option>
+                  <option value="" disabled>利用可能なモデルなし</option>
                 ) : (
-                   availableModels.map((modelId) => (
-                     <option key={modelId} value={modelId}>
-                       {modelId}
-                     </option>
-                   ))
+                  availableModels.map((modelId) => (
+                    <option key={modelId} value={modelId}>
+                      {modelId}
+                    </option>
+                  ))
                 )}
               </select>
             )}
@@ -133,8 +133,9 @@ function App() {
       </header>
       {/* --- /ヘッダー --- */}
 
-      {/* --- メインコンテンツ (チャット履歴) --- */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0"> {/* min-h-0 を追加 */}
+      {/* --- 右ペイン（メインコンテンツ + 入力欄） --- */}
+      <div className="flex-1 flex flex-col">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {/* メッセージリスト */}
         {messages.map((msg, index) => (
           // メッセージに一意なIDが付与されている前提 (useChat.jsで対応)
@@ -169,14 +170,15 @@ function App() {
       </main>
       {/* --- /メインコンテンツ --- */}
 
-      {/* --- フッター (入力欄) --- */}
-      <ChatInput
+        {/* --- 入力欄 --- */}
+        <ChatInput
         input={input}
         handleInputChange={handleInputChange} // 入力変更ハンドラ
         isLoading={isLoading || isModelsLoading} // 通常の送信 or モデル読み込み中
         handleSend={handleSend} // メッセージ送信ハンドラ (useChat から)
-        // 翻訳関連の props を削除
+      // 翻訳関連の props を削除
       />
+      </div>
     </div>
   );
 }
