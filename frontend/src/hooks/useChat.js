@@ -38,13 +38,13 @@ const useChat = () => {
   const [isModelsLoading, setIsModelsLoading] = useState(true); // モデルリスト取得中のローディング状態
 
   // --- Effect ---
-  // メッセージリストが更新されたら最下部へスクロール
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // 自動スクロール無効化
+  // const scrollToBottom = () => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // };
+  // useEffect(() => {
+  //   scrollToBottom();
+  // }, [messages]);
 
   // コンポーネントマウント時に利用可能なモデルリストを取得
   useEffect(() => {
