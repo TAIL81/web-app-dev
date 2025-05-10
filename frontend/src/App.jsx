@@ -3,6 +3,7 @@ import { AlertCircle, Sun, Moon, Trash2, Loader2 } from 'lucide-react';
 import useChat from './hooks/useChat';
 import Message from './components/Message';
 import ChatInput from './components/ChatInput';
+import AnalogClock from './components/AnalogClock'; // アナログ時計コンポーネントをインポート
 
 function App() {
   const {
@@ -100,6 +101,11 @@ function App() {
                 )}
               </select>
             )}
+          </div>
+
+          {/* アナログ時計 */}
+          <div className="my-4"> {/* 上下にマージンを追加 */}
+            <AnalogClock isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
           </div>
 
           {/* ボタングループ */}

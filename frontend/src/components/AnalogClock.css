@@ -1,0 +1,150 @@
+.analog-clock-container {
+    /* スタイル定義 */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    /* background-color と color は App.jsx のテーマに依存させるため削除 */
+    position: relative;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    /* テーマ関連のCSS変数定義と data-theme セレクタを削除 */
+}
+
+/* .analog-clock-container[data-theme="dark"] は削除 */
+
+.analog-clock-container * {
+    box-sizing: border-box;
+    /* transition: all ease 0.2s; */ /* 頻繁な更新と干渉する可能性があるためコメントアウト */
+}
+
+/* .page-header {
+    font-size: 2rem;
+    color: var(--main-text-color);
+    padding: 2rem 0;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    transition: color ease 0.2s;
+} */
+/* ヘッダーはコンポーネント内では不要なためコメントアウト */
+
+.clock {
+    min-height: 12em; /* サイズを少し小さく調整 */
+    min-width: 12em;  /* サイズを少し小さく調整 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* background-color は親から継承、またはTailwindのクラスで指定されることを期待 */
+    background-image: url("https://imvpn22.github.io/analog-clock/clock.png");
+    background-position: center center;
+    background-size: cover;
+    border-radius: 50%;
+    /* border も親から継承、またはTailwindのクラスで指定されることを期待 */
+    /* border: 4px solid var(--main-bg-color); */
+    box-shadow: 0 -10px 10px rgba(255, 255, 255, 0.05),
+        inset 0 -10px 10px rgba(255, 255, 255, 0.05), 0 10px 10px rgba(0, 0, 0, 0.3),
+        inset 0 10px 10px rgba(0, 0, 0, 0.3);
+    /* transition: background-color ease 0.2s, border-color ease 0.2s; */
+    position: relative; /* ::before の基準点 */
+}
+
+.clock::before {
+    content: "";
+    height: 0.6rem; /* サイズ調整 */
+    width: 0.6rem;  /* サイズ調整 */
+    background-color: currentColor; /* 親要素の文字色を使用 */
+    /* border: 2px solid var(--main-bg-color); */ /* 背景色依存のボーダーは一旦削除 */
+    border: 2px solid transparent; /* または透明に */
+    position: absolute;
+    border-radius: 50%;
+    z-index: 1000;
+    /* transition: background-color ease 0.2s, border-color ease 0.2s; */
+}
+
+.hour,
+.min,
+.sec {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.hour {
+    height: 7em;  /* サイズ調整 */
+    width: 7em;   /* サイズ調整 */
+}
+
+.hour::before {
+    content: "";
+    position: absolute;
+    height: 50%;
+    width: 5px; /* サイズ調整 */
+    background-color: currentColor; /* 親要素の文字色を使用 */
+    border-radius: 5px; /* サイズ調整 */
+    /* transition: background-color ease 0.2s; */
+}
+
+.min {
+    height: 9em;  /* サイズ調整 */
+    width: 9em;   /* サイズ調整 */
+}
+
+.min::before {
+    content: "";
+    position: absolute;
+    height: 50%;
+    width: 3px; /* サイズ調整 */
+    background-color: currentColor; /* 親要素の文字色を使用 */
+    border-radius: 3px; /* サイズ調整 */
+    /* transition: background-color ease 0.2s; */
+}
+
+.sec {
+    height: 10em; /* サイズ調整 */
+    width: 10em;  /* サイズ調整 */
+}
+
+.sec::before {
+    content: "";
+    position: absolute;
+    height: 60%;
+    width: 2px;
+    background-color: #f00; /* 秒針の色は固定 */
+    border-radius: 2px;
+}
+
+/* Style for theme switch btn */
+.switch-cont {
+    margin-top: 1em; /* 時計との間隔 */
+    /* position: absolute; */ /* コンポーネント内では不要 */
+    /* bottom: 0; */ /* コンポーネント内では不要 */
+}
+
+/* テーマ切り替えボタン関連のスタイルは AnalogClock.jsx からボタン自体を削除したので不要 */
+/*
+.switch-cont {
+    margin-top: 1em;
+}
+
+.switch-cont .switch-btn {
+    font-family: monospace;
+    text-transform: uppercase;
+    outline: none;
+    padding: 0.5rem 1rem;
+    background-color: currentColor; 
+    color: inherit; 
+    border: 1px solid currentColor; 
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all ease 0.3s;
+}
+
+.switch-cont .switch-btn:hover {
+    background-color: inherit; 
+    color: currentColor; 
+}
+*/
