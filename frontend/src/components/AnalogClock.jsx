@@ -1,7 +1,6 @@
-import React, { useEffect, useRef } from 'react'; // useState を削除
-import './AnalogClock.css';
+import React, { useEffect, useRef } from 'react';
 
-const AnalogClock = ({ isDarkMode, toggleDarkMode }) => { // props を受け取る
+const AnalogClock = ({ isDarkMode, toggleDarkMode, "aria-hidden": ariaHidden }) => {
   const hourRef = useRef(null);
   const minRef = useRef(null);
   const secRef = useRef(null);
@@ -31,29 +30,48 @@ const AnalogClock = ({ isDarkMode, toggleDarkMode }) => { // props を受け取�
     return () => clearInterval(intervalId); // クリーンアップ
   }, []);
 
-  useEffect(() => {
-    if (containerRef.current) {
-      const currentTheme = isDarkMode ? 'dark' : 'light';
-      // containerRef.current.setAttribute('data-theme', currentTheme); // 一時的にコメントアウトして影響を確認
-      // CSS変数の設定は AnalogClock.css で行うため、ここでは style.setProperty を削除
-    }
-  }, [isDarkMode]); // isDarkMode に依存
+  // isDarkMode の変更を監視する useEffect は、CSSファイルが削除されるため不要になります。
+  // テーマに応じたスタイル変更はTailwindのダークモード修飾子(dark:)で行います。
 
   return (
-    <div className="analog-clock-container" ref={containerRef}> {/* data-theme属性を削除 */}
-      {/* <div className="page-header">Analog Clock</div> */}
-      <div className="clock">
-        <div className="hour" ref={hourRef}></div>
-        <div className="min" ref={minRef}></div>
-        <div className="sec" ref={secRef}></div>
+    <div 
+      className="flex flex-col justify-center items-center text-base relative p-4" 
+      ref={containerRef}
+      aria-hidden={ariaHidden} // App.jsx から渡された aria-hidden を適用
+    >
+      <div 
+        className="min-h-[12em] min-w-[12em] flex justify-center items-center bg-[url('https://imvpn22.github.io/analog-clock/clock.png')] bg-center bg-cover rounded-full relative text-gray-800 dark:text-gray-200"
+        style={{ 
+          boxShadow: '0 -10px 10px rgba(255, 255, 255, 0.05), inset 0 -10px 10px rgba(255, 255, 255, 0.05), 0 10px 10px rgba(0, 0, 0, 0.3), inset 0 10px 10px rgba(0, 0, 0, 0.3)' 
+        }}
+      >
+        {/* Clock center dot */}
+        <div className="content-[''] h-[0.6rem] w-[0.6rem] bg-current border-2 border-transparent absolute rounded-full z-10"></div>
+        
+        {/* Hour hand */}
+        <div 
+          className="absolute flex justify-center rounded-full h-[7em] w-[7em]" 
+          ref={hourRef}
+        >
+          <div className="content-[''] absolute h-1/2 w-[5px] bg-current rounded-[5px]"></div>
+        </div>
+        
+        {/* Minute hand */}
+        <div 
+          className="absolute flex justify-center rounded-full h-[9em] w-[9em]" 
+          ref={minRef}
+        >
+          <div className="content-[''] absolute h-1/2 w-[3px] bg-current rounded-[3px]"></div>
+        </div>
+
+        {/* Second hand */}
+        <div 
+          className="absolute flex justify-center rounded-full h-[10em] w-[10em]" 
+          ref={secRef}
+        >
+          <div className="content-[''] absolute h-3/5 w-[2px] bg-red-500 rounded-[2px]"></div>
+        </div>
       </div>
-      {/* テーマ切り替えボタンは削除
-      <div className="switch-cont">
-        <button className="switch-btn" onClick={toggleDarkMode}>
-          {isDarkMode ? 'Light' : 'Dark'}
-        </button>
-      </div>
-      */}
     </div>
   );
 }

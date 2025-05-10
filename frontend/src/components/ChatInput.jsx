@@ -41,12 +41,13 @@ const ChatInput = ({
 
   // Enterキーでの送信ハンドラ
   const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Enter' && !event.shiftKey && !isLoading) {
+    if (event.key === 'Enter' && event.ctrlKey && !isLoading) { // Ctrlキーが押されているかを確認
       event.preventDefault();
       handleSend(uploadedFiles.filter(f => !f.error));
       clearFiles();
     }
-  }, [handleSend, clearFiles, isLoading, uploadedFiles]); // isExpanding の依存を削除
+    // Enterキー単独の場合や、Shift+Enterの場合は、TextareaAutosizeのデフォルトの挙動（改行）になります。
+  }, [handleSend, clearFiles, isLoading, uploadedFiles]);
 
   // ファイル削除ハンドラ
   const handleRemoveFile = useCallback((fileId) => {
@@ -213,7 +214,7 @@ const ChatInput = ({
           value={input}
           onChange={e => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="メッセージを入力... (Ctrl+Enterで送信, Shift+Enterで改行)"
+          placeholder="メッセージを入力... (Ctrl+Enterで送信, EnterまたはShift+Enterで改行)"
           className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-y-auto"
           style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}
           disabled={isLoading}

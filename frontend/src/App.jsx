@@ -45,15 +45,16 @@ function App() {
 
   // --- チャット履歴クリアハンドラ ---
   const handleClearChat = useCallback(() => {
-    // 確認ダイアログなどを挟む場合はここに追加
-    originalHandleClearChat(); // useChat のクリア処理を呼び出す
+    if (window.confirm('チャット履歴をクリアしますか？この操作は元に戻せません。')) {
+      originalHandleClearChat(); // useChat のクリア処理を呼び出す
+    }
   }, [originalHandleClearChat]); // 依存配列を修正
   // --- /チャット履歴クリアハンドラ ---
 
   return (
-    <div className="flex flex-row h-screen bg-gray-100 dark:bg-dark-background">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-100 dark:bg-dark-background">
       {/* --- 左サイドバー --- */}
-      <aside className="w-72 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+      <aside className="w-full md:w-72 md:flex-shrink-0 border-b md:border-r md:border-b-0 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
         {/* タイトルバー */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <div className="flex-shrink-0">
@@ -104,8 +105,13 @@ function App() {
           </div>
 
           {/* アナログ時計 */}
-          <div className="my-4"> {/* 上下にマージンを追加 */}
-            <AnalogClock isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+          <div className="my-4" aria-label="アナログ時計" role="presentation"> {/* 上下にマージンを追加 */}
+            <AnalogClock 
+              isDarkMode={isDarkMode} 
+              toggleDarkMode={toggleDarkMode}
+              aria-hidden="true" // 装飾的な要素として扱う
+            />
+            <div className="sr-only">現在時刻: {new Date().toLocaleTimeString('ja-JP')}</div>
           </div>
 
           {/* ボタングループ */}
@@ -138,7 +144,7 @@ function App() {
       {/* --- /左サイドバー --- */}
 
       {/* --- 右ペイン（メインコンテンツ + 入力欄） --- */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-y-auto md:overflow-y-hidden"> {/* overflow-y-auto md:overflow-y-hidden を追加 */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {/* メッセージリスト */}
           {messages.map((msg, index) => (
