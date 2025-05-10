@@ -8,7 +8,7 @@
     /* background-color と color は App.jsx のテーマに依存させるため削除 */
     position: relative;
     padding: 1rem;
-    border-radius: 8px;
+    /* border-radius: 8px;
     /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */ /* この行をコメントアウトまたは削除 */
     /* テーマ関連のCSS変数定義と data-theme セレクタを削除 */
 }
