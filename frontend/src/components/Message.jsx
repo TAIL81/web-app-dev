@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react'; // useEffect を削除
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import React, { useState } from 'react'; // useCallback, useEffect を削除
+// import ReactMarkdown from 'react-markdown'; // 一時的にコメントアウト
+// import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; // 一時的にコメントアウト
+// import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism'; // 一時的にコメントアウト
+import { User, Bot, BrainCircuit, ChevronDown, ChevronUp } from 'lucide-react'; // Copy, Check を削除
 // LaTeXサポート用ライブラリ (今回は無効化)
 // import remarkMath from 'remark-math';
 // import rehypeKatex from 'rehype-katex';
@@ -15,31 +15,28 @@ const Message = ({ message }) => {
   // 初期状態を閉じた状態に変更
   const [isReasoningOpen, setIsReasoningOpen] = useState(false); // デフォルトで閉じる
 
-  const [copiedStates, setCopiedStates] = useState({});
+  // const [copiedStates, setCopiedStates] = useState({}); // 一時的にコメントアウト
 
 
   // コードブロックのコピー処理
-  const handleCopy = useCallback((codeToCopy, index) => {
-    navigator.clipboard.writeText(codeToCopy).then(() => {
-      setCopiedStates(prev => ({ ...prev, [index]: true }));
-      setTimeout(() => {
-        setCopiedStates(prev => ({ ...prev, [index]: false }));
-      }, 1500);
-    }).catch(err => {
-      console.error('Failed to copy code: ', err);
-    });
-  }, []);
+  // const handleCopy = useCallback((codeToCopy, index) => { // 一時的にコメントアウト
+  //   navigator.clipboard.writeText(codeToCopy).then(() => {
+  //     setCopiedStates(prev => ({ ...prev, [index]: true }));
+  //     setTimeout(() => {
+  //       setCopiedStates(prev => ({ ...prev, [index]: false }));
+  //     }, 1500);
+  //   }).catch(err => {
+  //     console.error('Failed to copy code: ', err);
+  //   });
+  // }, []);
 
   // 早期リターン: hidden プロパティを持つメッセージはレンダリングしない
   if (message.hidden) {
     return null;
   }
 
-  // AIメッセージ本文用の背景色クラス
-  const aiMessageBgColor = 'bg-sky-50 dark:bg-sky-900/60';
-
   // --- Markdown Components for ReactMarkdown ---
-  const markdownComponents = { // コードブロックと段落のカスタムレンダリング
+  /* const markdownComponents = { // コードブロックと段落のカスタムレンダリング // 一時的にコメントアウト
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children).replace(/\n$/, '');
@@ -74,8 +71,8 @@ const Message = ({ message }) => {
     // <p> の代わりに <div> を使用してネストエラーを回避
     // prose クラスが適用されているため、スタイルは維持されるはず
     // 段落間のスペースを維持するために mb-4 (Tailwindのマージンクラス) を追加
-    p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div> // 最後の要素のマージンは削除
-  };
+    p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div> // クラスを最小限にし、枠関連のクラスを削除
+  }; */
 
   // --- Component Rendering ---
   return (
@@ -83,8 +80,8 @@ const Message = ({ message }) => {
       {/* ユーザーメッセージ */}
       {message.role === 'user' && (
         <div className="flex justify-end items-start mb-4 group">
-          <div className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow bg-blue-100 dark:bg-blue-900 dark:bg-opacity-80 mr-2 break-words">
-            <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p>
+          <div className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background mr-2 break-words"> {/* 影を削除、背景色を親に合わせる */}
+            <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p> {/* 文字色をAIメッセージに合わせる */}
           </div>
           <User className="w-8 h-8 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
         </div>
@@ -100,7 +97,7 @@ const Message = ({ message }) => {
               <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
                 <BrainCircuit className="w-6 h-6 text-gray-400 dark:text-gray-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
               </div>
-              <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-lg shadow bg-gray-200 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300 break-words">
+              <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background text-xs text-gray-700 dark:text-dark-text break-words"> {/* 影を削除、背景色を親に合わせる、文字色を調整 */}
                 <button
                   onClick={() => setIsReasoningOpen(!isReasoningOpen)}
                   className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none w-full text-left mb-1"
@@ -151,16 +148,17 @@ const Message = ({ message }) => {
             <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
               <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             </div>
-            <div className={`prose prose-sm max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-2 rounded-lg shadow ${aiMessageBgColor} dark:prose-invert break-words w-full`}>
-              <div className="markdown-content">
+            <div
+              className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 shadow-none bg-gray-100 dark:bg-dark-background break-words w-full border border-transparent" // パディングを元に戻す (px-4 py-3)
+              // 強制的に枠線、アウトライン、ボックスシャドウ、背景画像、パディング、マージンをリセット
+              // style={{ border: 'none !important', outline: 'none !important', boxShadow: 'none !important', backgroundImage: 'none !important', padding: '0 !important', margin: '0 !important' }} // インラインスタイルは一旦コメントアウト
+            >
+              <div className="markdown-content-temp-test border-0 outline-none shadow-none bg-transparent p-0 m-0"> {/* クラス名を一時的に変更 */}
                 {message.content ? (
-                  <ReactMarkdown
-                    components={markdownComponents}
-                  // remarkPlugins={[remarkMath]} // remark-math プラグインを削除
-                  // rehypePlugins={[rehypeKatex]} // rehype-katex プラグインを削除
-                  >
+                  // ReactMarkdownの使用を一時的に停止し、プレーンテキストで表示
+                  <div className="whitespace-pre-wrap break-words text-gray-800 dark:text-dark-text"> {/* 文字色を指定 */}
                     {message.content}
-                  </ReactMarkdown>
+                  </div>
                 ) : (
                   !message.reasoning && (!message.tool_calls || message.tool_calls.length === 0) && "..."
                 )}
