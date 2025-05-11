@@ -3,10 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
-// LaTeXサポート用ライブラリ
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
 
 // const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen'; // localStorageを使用しないため削除
 
@@ -157,8 +153,6 @@ const Message = ({ message }) => {
                 {message.content ? (
                   <ReactMarkdown
                     components={markdownComponents}
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
                   >
                     {message.content}
                   </ReactMarkdown>
