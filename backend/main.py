@@ -421,10 +421,12 @@ async def get_available_models():
         # または raise HTTPException(status_code=500, detail="Failed to retrieve available models.")
 
 # --- File Upload Endpoint ---
+from fastapi import Form # Form をインポート
+
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(None), url: str = Form(None)): # file をオプショナルにし、url パラメータを追加
     """
-    Handles single file uploads.
+    Handles single file uploads or URL submissions.
     Saves the file to the UPLOAD_DIR using pathlib and aiofiles.
     Applies validation for file size and type based on config.json.
     """
@@ -439,91 +441,83 @@ async def upload_file(file: UploadFile = File(...)):
     # もし古い場合は、content = await file.read() の後に len(content) でチェックする。
     # ただし、大きなファイルをメモリに読み込むことになるため、ストリーミング処理が望ましい。
     # ここでは簡潔さのため、まず全体を読み込んでからサイズチェックを行う。
-    
-    content = await file.read() # 先に内容を読み込む
-    file_size_bytes = len(content)
-    max_size_bytes = max_size_mb * 1024 * 1024
+    if not file and not url:
+        raise HTTPException(status_code=400, detail="ファイルまたはURLを指定してください。")
 
-    if file_size_bytes > max_size_bytes:
-        logger.warning(f"ファイルサイズ超過: {file.filename} ({file_size_bytes} bytes > {max_size_bytes} bytes)")
-        raise HTTPException(
-            status_code=413, # Payload Too Large
-            detail=f"ファイルサイズが大きすぎます。最大 {max_size_mb}MB までです。"
-        )
-
-    # ファイルタイプのバリデーション
-    if allowed_types and file.content_type not in allowed_types:
-        logger.warning(f"許可されないファイルタイプ: {file.filename} ({file.content_type})")
-        raise HTTPException(
-            status_code=415, # Unsupported Media Type
-            detail=f"許可されていないファイルタイプです。許可されているタイプ: {', '.join(allowed_types)}"
-        )
-
-    try:
-        # UPLOAD_DIR は config からも取得できるようにする (オプション)
-        # upload_dir_name = upload_settings.get("upload_dir", "uploads")
-        # current_upload_dir = Path(__file__).parent / upload_dir_name
-        # current_upload_dir.mkdir(exist_ok=True)
-        # file_path = current_upload_dir / file.filename
-        # 上記は UPLOAD_DIR がグローバル定数として定義されているため、ここでは UPLOAD_DIR を直接使用
-
-        file_path = UPLOAD_DIR / file.filename
+    if url:
+        # URL処理 (簡易的なバリデーションのみ)
+        if not (url.startswith("http://") or url.startswith("https://")):
+            logger.warning(f"無効なURL形式です: {url}")
+            raise HTTPException(status_code=400, detail="無効なURL形式です。http:// または https:// で始まる必要があります。")
         
-        # ファイル名が衝突する場合の処理 (例: タイムスタンプを付与)
-        # ここでは単純に上書きするが、必要に応じて変更
-        # count = 0
-        # original_stem = file_path.stem
-        # original_suffix = file_path.suffix
-        # while file_path.exists():
-        #     count += 1
-        #     file_path = UPLOAD_DIR / f"{original_stem}_{count}{original_suffix}"
-
-        async with aiofiles.open(file_path, 'wb') as buffer:
-            # content は既に読み込み済みなので、それを書き込む
-            await buffer.write(content)
-        logger.info(f"ファイルがローカルにアップロードされました: {file.filename} -> {file_path}")
-
-        # Groq API にファイルをアップロード
-        groq_file_id = None
-        if groq_client:
-            try:
-                logger.info(f"Groq API にファイル '{file.filename}' をアップロードしています...")
-                # Groq SDK の client.files.create は file パラメータにファイルオブジェクト (読み取りモードで開いたもの) を期待する
-                # PathLike オブジェクトも受け付けるが、内部でファイルを開く処理が入る。
-                # ここでは既にローカルに保存した file_path (Pathオブジェクト) を渡す。
-                # purpose は 'assistants' や 'fine-tune' などが一般的。
-                # 'chat' purpose が存在するか不明なため、'assistants' を使用。
-                with open(file_path, "rb") as f_for_groq:
-                    # client.files.create は同期メソッドのため、FastAPIの非同期関数内で直接呼び出すとブロッキングする可能性がある。
-                    # 本番環境では asyncio.to_thread を使うか、同期クライアントを別スレッドで実行することを検討。
-                    # ここでは簡略化のため直接呼び出す。
-                    groq_file_response = groq_client.files.create(file=f_for_groq, purpose="assistants")
-                
-                groq_file_id = groq_file_response.id
-                logger.info(f"Groq API へのファイルアップロード成功: {file.filename}, File ID: {groq_file_id}")
-
-            except GroqError as ge:
-                logger.error(f"Groq API へのファイルアップロード中に Groq エラーが発生しました ({file.filename}): {ge}")
-                # Groqへのアップロード失敗は許容せず、エラーとして処理を中断する
-                raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロードエラー: {ge}")
-            except Exception as e:
-                logger.error(f"Groq API へのファイルアップロード中に予期せぬエラーが発生しました ({file.filename}): {e}")
-                logger.exception("Groq API ファイルアップロードエラーの詳細:")
-                raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロード中に予期せぬエラー: {e}")
-        else:
-            logger.warning("Groq client が初期化されていないため、Groq API へのファイルアップロードをスキップします。")
-            # Groqクライアントがない場合は、groq_file_id は None のまま
-
+        logger.info(f"URLが送信されました: {url}")
+        # ここでURLをGroqに送信するなどの処理を実装
+        # 今回の最小実装では、URLを受け取ったことをログに記録し、そのまま返す
         return {
-            "filename": file.filename, 
-            "saved_path": str(file_path), # ローカルの保存パス
-            "groq_file_id": groq_file_id, # Groq にアップロードされた場合のファイルID
-            "message": "ファイルが正常にアップロードされました。"
+            "filename": None, # URLの場合はファイル名なし
+            "saved_path": None, # ローカル保存なし
+            "groq_file_id": None, # Groqへのアップロードも今回はスキップ
+            "message": f"URL '{url}' を受信しました。",
+            "url_received": url
         }
-    except Exception as e:
-        logger.error(f"ファイルアップロード処理全体でエラーが発生しました ({file.filename}): {e}")
-        logger.exception("ファイルアップロード処理全体のエラー詳細:")
-        raise HTTPException(status_code=500, detail=f"ファイルアップロード処理中にエラーが発生しました: {e}")
+
+    if file:
+        content = await file.read() # 先に内容を読み込む
+        file_size_bytes = len(content)
+        max_size_bytes = max_size_mb * 1024 * 1024
+
+        if file_size_bytes > max_size_bytes:
+            logger.warning(f"ファイルサイズ超過: {file.filename} ({file_size_bytes} bytes > {max_size_bytes} bytes)")
+            raise HTTPException(
+                status_code=413, # Payload Too Large
+                detail=f"ファイルサイズが大きすぎます。最大 {max_size_mb}MB までです。"
+            )
+
+        # ファイルタイプのバリデーション
+        if allowed_types and file.content_type not in allowed_types:
+            logger.warning(f"許可されないファイルタイプ: {file.filename} ({file.content_type})")
+            raise HTTPException(
+                status_code=415, # Unsupported Media Type
+                detail=f"許可されていないファイルタイプです。許可されているタイプ: {', '.join(allowed_types)}"
+            )
+
+        try:
+            file_path = UPLOAD_DIR / file.filename
+            
+            async with aiofiles.open(file_path, 'wb') as buffer:
+                await buffer.write(content)
+            logger.info(f"ファイルがローカルにアップロードされました: {file.filename} -> {file_path}")
+
+            groq_file_id = None
+            if groq_client:
+                try:
+                    logger.info(f"Groq API にファイル '{file.filename}' をアップロードしています...")
+                    with open(file_path, "rb") as f_for_groq:
+                        groq_file_response = groq_client.files.create(file=f_for_groq, purpose="assistants")
+                    
+                    groq_file_id = groq_file_response.id
+                    logger.info(f"Groq API へのファイルアップロード成功: {file.filename}, File ID: {groq_file_id}")
+
+                except GroqError as ge:
+                    logger.error(f"Groq API へのファイルアップロード中に Groq エラーが発生しました ({file.filename}): {ge}")
+                    raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロードエラー: {ge}")
+                except Exception as e:
+                    logger.error(f"Groq API へのファイルアップロード中に予期せぬエラーが発生しました ({file.filename}): {e}")
+                    logger.exception("Groq API ファイルアップロードエラーの詳細:")
+                    raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロード中に予期せぬエラー: {e}")
+            else:
+                logger.warning("Groq client が初期化されていないため、Groq API へのファイルアップロードをスキップします。")
+
+            return {
+                "filename": file.filename, 
+                "saved_path": str(file_path),
+                "groq_file_id": groq_file_id,
+                "message": "ファイルが正常にアップロードされました。"
+            }
+        except Exception as e:
+            logger.error(f"ファイルアップロード処理全体でエラーが発生しました ({file.filename}): {e}")
+            logger.exception("ファイルアップロード処理全体のエラー詳細:")
+            raise HTTPException(status_code=500, detail=f"ファイルアップロード処理中にエラーが発生しました: {e}")
 
 # --- File Management Utilities (using pathlib) ---
 def cleanup_old_uploads(days: int = 7):

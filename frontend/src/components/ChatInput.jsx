@@ -1,7 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown } from 'lucide-react';
-// import useFileUpload from '../hooks/useFileUpload'; // App.jsx から props で渡されるため削除
+import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown, X, FileText, Link } from 'lucide-react'; // Added X, FileText, Link
 import FilePreview from './FilePreview';
 
 const ChatInput = ({
@@ -9,23 +8,22 @@ const ChatInput = ({
   handleInputChange,
   isLoading,
   handleSend,
-  // FileUpload props from App.jsx
   uploadedFiles,
   isDragging,
   removeFile,
-  clearAllFiles, // App.jsx から渡される clearFiles 関数 (名前変更を反映)
+  clearAllFiles,
   handleDragEnter,
   handleDragLeave,
   handleDragOver,
   handleDrop,
-  handleFileChange: onFileChange, // App.jsx から渡される handleFileChange (名前変更を反映)
+  handleFileChange: onFileChange,
+  setSelectedFile, // This prop is available if needed, but onFileChange should handle file selection
 }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const templateButtonRef = useRef(null);
   const templateDropdownRef = useRef(null);
 
-  // --- プロンプトテンプレート機能 State ---
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
   const promptTemplates = [
     { id: 'summary', label: '要約させる', value: 'あなたは要約の専門家です。' },
@@ -34,52 +32,47 @@ const ChatInput = ({
     { id: 'translate_jp', label: '日本語に翻訳させる', value: 'あなたはプロの翻訳家です。日本語に翻訳してください。' },
     { id: 'explain', label: '説明させる', value: 'あなたはその分野の専門家です。分かりやすく説明してください。' },
   ];
-  // --- /プロンプトテンプレート機能 State ---
 
-  // Enterキーでの送信ハンドラ
+  // State for the new attachment modal
+  const [isAttachmentModalOpen, setIsAttachmentModalOpen] = useState(false);
+  const [attachmentTypeInModal, setAttachmentTypeInModal] = useState('file'); // 'file' or 'url'
+  const [urlInputValue, setUrlInputValue] = useState('');
+
   const handleKeyDown = useCallback((event) => {
     if (event.key === 'Enter' && event.ctrlKey && !isLoading) {
       event.preventDefault();
       handleSend(uploadedFiles.filter(f => !f.error));
-      // ChatInput 内での clearFiles 呼び出しは App.jsx の handleSend 側で行うか、
-      // handleSend が成功した後に App.jsx 側で clearFiles を呼ぶ形にするのが一般的。
-      // ここでは App.jsx の handleSend にファイルクリアも委ねる想定なので削除。
-      // clearAllFiles(); // 送信後にファイルをクリアする場合 (App.jsx側で制御するなら不要)
     }
   }, [handleSend, isLoading, uploadedFiles]);
 
-  // ファイル削除ハンドラ
   const handleRemoveFile = useCallback((fileId) => {
     removeFile(fileId);
   }, [removeFile]);
 
-  // --- プロンプトテンプレート関連ハンドラ ---
   const toggleTemplateDropdown = () => {
     setIsTemplateDropdownOpen(prev => !prev);
   };
 
   const handleInsertTemplate = (instruction) => {
-    const currentInput = input.trim(); // 現在の入力内容を取得
-    let newContent = instruction; // デフォルトは指示文のみ
-
-    if (currentInput) { // 入力があれば内容を結合
+    const currentInput = input.trim();
+    let newContent = instruction;
+    if (currentInput) {
       newContent = `${instruction}\n\n以下の内容についてお願いします:\n\`\`\`\n${currentInput}\n\`\`\``;
-    } else { // 入力がなければ指示文の後に改行を追加
+    } else {
       newContent += '\n';
     }
-    handleInputChange(newContent); // 生成した内容で入力欄全体を更新
-    setIsTemplateDropdownOpen(false); // ドロップダウンを閉じる
-    textareaRef.current?.focus(); // テキストエリアにフォーカスを戻す
+    handleInputChange(newContent);
+    setIsTemplateDropdownOpen(false);
+    textareaRef.current?.focus();
   };
 
-  // ドロップダウン外クリックで閉じる処理
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         isTemplateDropdownOpen &&
         templateDropdownRef.current &&
         !templateDropdownRef.current.contains(event.target) &&
-        templateButtonRef.current && // ボタン自体をクリックした場合も閉じないように
+        templateButtonRef.current &&
         !templateButtonRef.current.contains(event.target)
       ) {
         setIsTemplateDropdownOpen(false);
@@ -88,40 +81,64 @@ const ChatInput = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isTemplateDropdownOpen]);
-  // --- /プロンプトテンプレート関連ハンドラ ---
+
+  const openAttachmentModal = () => {
+    setAttachmentTypeInModal('file'); // Default to file
+    setUrlInputValue('');
+    setIsAttachmentModalOpen(true);
+  };
+
+  const closeAttachmentModal = () => {
+    setIsAttachmentModalOpen(false);
+  };
+
+  const handleSelectFileFromModal = () => {
+    fileInputRef.current?.click();
+    // onFileChange will be triggered by the input, then we can close modal
+    // For now, let's assume onFileChange might need to signal modal closure or App.jsx handles it
+  };
+  
+  // Wrapper for onFileChange to close modal
+  const handleFileSelectedAndCloseModal = (event) => {
+    onFileChange(event); // Call the original handler passed from App.jsx
+    closeAttachmentModal();
+  };
+
+  const handleAddUrlFromModal = () => {
+    if (urlInputValue.trim()) {
+      console.log("URL submitted:", urlInputValue);
+      // Here, you would typically pass the URL to a handler in App.jsx
+      // For example: onUrlSubmit(urlInputValue);
+      // For now, just log and close
+      setUrlInputValue('');
+      closeAttachmentModal();
+    }
+  };
+
   return (
     <footer
-      className={`bg-white dark:bg-dark-card p-4 shadow-inner sticky bottom-0 z-10 transition-all duration-200 ease-out ${
-        isDragging ? 'border-t-4 border-blue-500' : 'border-t border-gray-200 dark:border-gray-700'
-      }`}
+      className={`bg-white dark:bg-dark-card p-4 shadow-inner sticky bottom-0 z-10 transition-all duration-200 ease-out ${isDragging ? 'border-t-4 border-blue-500' : 'border-t border-gray-200 dark:border-gray-700'
+        }`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       aria-label="チャット入力エリア"
     >
-      {/* ドラッグ中のオーバーレイ */}
       {isDragging && (
         <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900/50 flex flex-col items-center justify-center pointer-events-none z-20 border-4 border-dashed border-blue-500 dark:border-blue-400 rounded-lg m-2">
           <UploadCloud className="w-12 h-12 text-blue-600 dark:text-blue-300 mb-2 animate-bounce" />
-          <p className="text-lg font-semibold text-blue-700 dark:text-blue-200">
-            ファイルをここにドロップ
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            テキストファイルを添付できます
-          </p>
+          <p className="text-lg font-semibold text-blue-700 dark:text-blue-200">ファイルをここにドロップ</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">テキストファイルを添付できます</p>
         </div>
       )}
 
-      {/* ファイルプレビューエリア */}
       {uploadedFiles.length > 0 && (
-        <div className="mb-3 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-dark-card rounded-lg border border-gray-200 dark:border-gray-600"> {/* dark:bg-dark-input を dark:bg-dark-card に変更 */}
+        <div className="mb-3 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-dark-card rounded-lg border border-gray-200 dark:border-gray-600">
           <div className="flex justify-between items-center mb-1 px-1">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              添付ファイル ({uploadedFiles.length}件)
-            </span>
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">添付ファイル ({uploadedFiles.length}件)</span>
             <button
-              onClick={clearAllFiles} // App.jsx から渡された clearAllFiles を使用
+              onClick={clearAllFiles}
               disabled={isLoading}
               className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
               title="すべての添付ファイルをクリア"
@@ -131,47 +148,33 @@ const ChatInput = ({
           </div>
           <div className="flex flex-wrap gap-2">
             {uploadedFiles.map((fileData) => (
-              <FilePreview
-                key={fileData.id}
-                fileData={fileData}
-                onRemove={handleRemoveFile}
-                isLoading={isLoading}
-              />
+              <FilePreview key={fileData.id} fileData={fileData} onRemove={handleRemoveFile} isLoading={isLoading} />
             ))}
           </div>
         </div>
       )}
 
-      {/* --- 上部: 翻訳ボタン (削除済み) --- */}
-
-      {/* --- 下部: 入力エリアと送信ボタン --- */}
       <div className="flex items-end gap-2">
-        {/* ファイル選択用の非表示input要素 */}
         <input
           type="file"
           ref={fileInputRef}
-          onChange={onFileChange} // App.jsx から渡された onFileChange を使用
+          onChange={handleFileSelectedAndCloseModal} // Use wrapper to close modal
           className="hidden"
           multiple
           accept=".md,.py,.js,.ts,.html,.css,.json,.yaml,.yml,.csv,.txt,text/*"
           disabled={isLoading}
         />
 
-        {/* ファイル添付ボタン (アイコンのみに変更) */}
         <button
-          onClick={() => {
-            console.log("File input clicked");
-            fileInputRef.current?.click();
-          }}
+          onClick={openAttachmentModal} // Changed to open modal
           disabled={isLoading}
-          aria-label="ファイルを選択して添付"
-          title="ファイルを選択 (クリックまたはドラッグ＆ドロップ)"
+          aria-label="ファイルまたはURLを添付"
+          title="ファイルまたはURLを添付 (クリックまたはドラッグ＆ドロップ)"
           className={`p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 transition-colors disabled:opacity-50 flex-shrink-0`}
         >
           <Paperclip className="w-5 h-5" />
         </button>
 
-        {/* プロンプトテンプレートボタンとドロップダウン (位置移動) */}
         <div className="relative flex-shrink-0">
           <button
             ref={templateButtonRef}
@@ -182,17 +185,15 @@ const ChatInput = ({
             className={`p-2 rounded-lg flex items-center gap-1 transition duration-200 ease-in-out transform ${isLoading
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50'
               : 'bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
-            }`}
+              }`}
           >
             <Sparkles className="w-5 h-5" />
             <ChevronDown className={`w-4 h-4 transition-transform ${isTemplateDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
-
-          {/* ドロップダウンメニュー (表示位置変更) */}
           {isTemplateDropdownOpen && (
             <div
               ref={templateDropdownRef}
-              className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-30 overflow-hidden" // right-0 を left-0 に変更
+              className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-30 overflow-hidden"
             >
               <ul className="py-1 max-h-60 overflow-y-auto">
                 {promptTemplates.map((template) => (
@@ -207,7 +208,6 @@ const ChatInput = ({
           )}
         </div>
 
-        {/* 自動リサイズするテキストエリア */}
         <TextareaAutosize
           ref={textareaRef}
           value={input}
@@ -222,19 +222,96 @@ const ChatInput = ({
           aria-label="メッセージ入力"
         />
 
-        {/* 送信ボタン */}
         <button
-          onClick={() => handleSend(uploadedFiles.filter(f => !f.error))} // handleSend に引数を渡す
-          disabled={isLoading || !input.trim()} // isExpanding を削除
+          onClick={() => handleSend(uploadedFiles.filter(f => !f.error))}
+          disabled={isLoading || !input.trim()}
           aria-label="送信 (Ctrl+Enter)"
           className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || !input.trim()
             ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
             : 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
-          }`}
+            }`}
         >
           <Send className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Attachment Modal */}
+      {isAttachmentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">添付方法を選択</h3>
+              <button onClick={closeAttachmentModal} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="mb-4 border-b border-gray-200 dark:border-gray-700">
+              <nav className="flex space-x-1" aria-label="Tabs">
+                <button
+                  onClick={() => setAttachmentTypeInModal('file')}
+                  className={`px-3 py-2 font-medium text-sm rounded-t-md ${attachmentTypeInModal === 'file'
+                      ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-300 border-b-2'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}
+                >
+                  <FileText size={18} className="inline mr-1" /> ファイルを選択
+                </button>
+                <button
+                  onClick={() => setAttachmentTypeInModal('url')}
+                  className={`px-3 py-2 font-medium text-sm rounded-t-md ${attachmentTypeInModal === 'url'
+                      ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-300 border-b-2'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}
+                >
+                  <Link size={18} className="inline mr-1" /> URLを入力
+                </button>
+              </nav>
+            </div>
+
+            {attachmentTypeInModal === 'file' && (
+              <div className="text-center">
+                <button
+                  onClick={handleSelectFileFromModal}
+                  disabled={isLoading}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  ファイルを選択...
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  クリックしてファイルダイアログを開きます。
+                </p>
+              </div>
+            )}
+
+            {attachmentTypeInModal === 'url' && (
+              <div>
+                <input
+                  type="text"
+                  value={urlInputValue}
+                  onChange={(e) => setUrlInputValue(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 dark:text-dark-text mb-3"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={handleAddUrlFromModal}
+                  disabled={isLoading || !urlInputValue.trim()}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  URLを追加
+                </button>
+              </div>
+            )}
+            <button
+              onClick={closeAttachmentModal}
+              className="mt-4 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
     </footer>
   );
 };
