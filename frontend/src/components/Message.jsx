@@ -3,16 +3,14 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
-
-// const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen'; // localStorageを使用しないため削除
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 const Message = ({ message }) => {
   // --- State and Hooks ---
-  // 初期状態を閉じた状態に変更
-  const [isReasoningOpen, setIsReasoningOpen] = useState(false); // デフォルトで閉じる
-
+  const [isReasoningOpen, setIsReasoningOpen] = useState(false);
   const [copiedStates, setCopiedStates] = useState({});
-
 
   // コードブロックのコピー処理
   const handleCopy = useCallback((codeToCopy, index) => {
@@ -32,7 +30,7 @@ const Message = ({ message }) => {
   }
 
   // --- Markdown Components for ReactMarkdown ---
-  const markdownComponents = { // コードブロックと段落のカスタムレンダリング
+  const markdownComponents = {
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children).replace(/\n$/, '');
@@ -63,21 +61,39 @@ const Message = ({ message }) => {
         </code>
       );
     },
-    // p: ({ node, ...props }) => <p style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }} {...props} />
-    // <p> の代わりに <div> を使用してネストエラーを回避
-    // prose クラスが適用されているため、スタイルは維持されるはず
-    // 段落間のスペースを維持するために mb-4 (Tailwindのマージンクラス) を追加
-    p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div> // クラスを最小限にし、枠関連のクラスを削除
+    p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div>,
   };
 
   // --- Component Rendering ---
   return (
-    <div>
+    <div className="relative">
+      <style jsx>{`
+        /* KaTeX 数式用のカスタムスタイル */
+        .katex {
+          font-size: 1em; /* フォントサイズを調整 */
+          margin: 0; /* 余分なマージンを削除 */
+          padding: 0; /* 余分なパディングを削除 */
+        }
+        .katex-display {
+          display: block; /* ブロック数式を適切に配置 */
+          margin: 0.5em 0; /* 上下のマージンを制御 */
+          overflow-x: auto; /* 横スクロールを許可 */
+          overflow-y: hidden; /* 縦スクロールを防止 */
+          max-width: 100%; /* 親コンテナの幅に制限 */
+        }
+        .katex-html {
+          overflow: hidden; /* 数式内の余分なスクロールを防止 */
+        }
+        .message-container {
+          overflow-y: hidden; /* メッセージ全体の縦スクロールを防止 */
+        }
+      `}</style>
+
       {/* ユーザーメッセージ */}
       {message.role === 'user' && (
-        <div className="flex justify-end items-start mb-4 group">
-          <div className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background mr-2 break-words"> {/* 影を削除、背景色を親に合わせる */}
-            <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p> {/* 文字色をAIメッセージに合わせる */}
+        <div className="flex justify-end items-start mb-4 group message-container">
+          <div className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background mr-2 break-words">
+            <p className="text-gray-800 dark:text-dark-text" style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}>{message.content}</p>
           </div>
           <User className="w-8 h-8 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
         </div>
@@ -85,15 +101,14 @@ const Message = ({ message }) => {
 
       {/* AI メッセージ */}
       {message.role === 'assistant' && (
-        <div className="mb-4">
-          {/* 思考プロセス (Reasoning) */}
+        <div className="mb-4 message-container">
           {/* 思考プロセス (Reasoning, Plan, Criticism) */}
           {(message.reasoning || message.plan || message.criticism) && (
             <div className="flex items-start mb-2 group">
               <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
                 <BrainCircuit className="w-6 h-6 text-gray-400 dark:text-gray-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
               </div>
-              <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background text-xs text-gray-700 dark:text-dark-text break-words"> {/* 影を削除、背景色を親に合わせる、文字色を調整 */}
+              <div className="w-full max-w-lg lg:max-w-xl xl:max-w-3xl px-3 py-2 rounded-xl shadow-none bg-gray-100 dark:bg-dark-background text-xs text-gray-700 dark:text-dark-text break-words">
                 <button
                   onClick={() => setIsReasoningOpen(!isReasoningOpen)}
                   className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none w-full text-left mb-1"
@@ -106,7 +121,6 @@ const Message = ({ message }) => {
                 <div
                   className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isReasoningOpen ? 'max-h-[20rem] overflow-y-auto' : 'max-h-0'}`}
                 >
-                  {/* 推論 */}
                   {message.reasoning && (
                     <div className="mb-3">
                       <div className="font-bold text-gray-600 dark:text-gray-400">推論:</div>
@@ -115,7 +129,6 @@ const Message = ({ message }) => {
                       </pre>
                     </div>
                   )}
-                  {/* 行動計画 */}
                   {message.plan && (
                     <div className="mb-3">
                       <div className="font-bold text-gray-600 dark:text-gray-400">行動計画:</div>
@@ -124,7 +137,6 @@ const Message = ({ message }) => {
                       </pre>
                     </div>
                   )}
-                  {/* 自己批判 */}
                   {message.criticism && (
                     <div className="mb-3">
                       <div className="font-bold text-gray-600 dark:text-gray-400">自己批判:</div>
@@ -139,20 +151,19 @@ const Message = ({ message }) => {
           )}
 
           {/* AI 回答本文 */}
-          <div className="flex items-start group"> {/* flex items-start を適用 */}
-            {/* アイコン用コンテナ (固定幅 + 中央揃え) - Botアイコンは元々w-8なので中央揃え不要かもだが統一 */}
+          <div className="flex items-start group">
             <div className="w-8 h-8 mr-2 flex-shrink-0 flex justify-center items-center mt-1">
               <Bot className="w-8 h-8 text-blue-400 dark:text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors" />
             </div>
             <div
-              className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 shadow-none bg-gray-100 dark:bg-dark-background break-words w-full border border-transparent" // パディングを元に戻す (px-4 py-3)
-              // 強制的に枠線、アウトライン、ボックスシャドウ、背景画像、パディング、マージンをリセット
-              // style={{ border: 'none !important', outline: 'none !important', boxShadow: 'none !important', backgroundImage: 'none !important', padding: '0 !important', margin: '0 !important' }} // インラインスタイルは一旦コメントアウト
+              className="max-w-lg lg:max-w-xl xl:max-w-3xl px-4 py-3 shadow-none bg-gray-100 dark:bg-dark-background break-words w-full border border-transparent"
             >
               <div className="prose prose-sm sm:prose dark:prose-invert max-w-none text-gray-800 dark:text-dark-text">
                 {message.content ? (
                   <ReactMarkdown
                     components={markdownComponents}
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
                   >
                     {message.content}
                   </ReactMarkdown>
