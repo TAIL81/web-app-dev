@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq, GroqError, AuthenticationError, RateLimitError, APIConnectionError, BadRequestError
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pathlib import Path # pathlib をインポート
 import aiofiles # aiofiles をインポート
 
@@ -146,9 +146,14 @@ async def startup_event():
 
 
 # --- Pydantic Models (変更なし) ---
+class MessageContentPart(BaseModel):
+    type: str
+    text: Optional[str] = None
+    image_url: Optional[Dict[str, str]] = None # e.g. {"url": "data:image/jpeg;base64,..."} or {"url": "http://example.com/image.jpg"}
+
 class Message(BaseModel):
     role: str
-    content: str
+    content: Union[str, List[MessageContentPart]] # 文字列またはContentPartのリストを許容
 
 class ChatRequest(BaseModel):
     messages: List[Message]
@@ -246,78 +251,34 @@ async def chat(request: ChatRequest):
             messages_for_api.append({"role": "system", "content": system_prompt_content})
             logger.debug("Added system prompt.") # システムプロンプト追加はDEBUG
 
-        logger.debug("Processing messages:") # メッセージ処理開始はDEBUG
-        import re # 正規表現モジュールをインポート
+        logger.debug("Processing messages:")
         for msg in request.messages:
-            processed_content = msg.content
+            # msg.content は string または List[MessageContentPart] の可能性がある
+            # Groq APIはそのままこの形式を受け付けるため、特別な処理は不要
+            # ただし、ログ出力のために内容を確認する
             if isinstance(msg.content, str):
-                # ファイル添付情報を検索 (例: "[添付ファイル: test.txt (パス: uploads/test.txt)]")
-                # この正規表現はフロントエンドの実装と一致させる必要がある
-                file_attachment_pattern = r"\[添付ファイル: (.+?) \(パス: (.+?)\)\]"
-                attachments = re.findall(file_attachment_pattern, msg.content)
-                
-                file_contents_for_api = []
-                processed_content_without_placeholders = msg.content
-
-                for filename, filepath_str in attachments:
-                    filepath = Path(filepath_str)
-                    # UPLOAD_DIR からの相対パスであることを確認し、セキュリティのために UPLOAD_DIR 内に限定する
-                    # Path(filepath_str) が絶対パスの場合や、UPLOAD_DIR 外を指す場合はエラーとするか、無視する
-                    # ここでは UPLOAD_DIR からの相対パスとして扱う (フロントエンドがそのように送信する前提)
-                    # 実際には UPLOAD_DIR / Path(filepath_str).name のようにファイル名だけを使う方が安全
-                    
-                    # より安全なファイルパスの構築 (UPLOAD_DIR を基準とする)
-                    # フロントエンドからは saved_path (UPLOAD_DIRからの相対パスまたは絶対パス) が送られてくる
-                    # ここでは UPLOAD_DIR と filepath_str (saved_path) を結合するが、
-                    # filepath_str が絶対パスの場合はそれが優先される。
-                    # セキュリティのため、filepath が UPLOAD_DIR の中にあることを確認する。
-                    
-                    # フロントエンドは saved_path として UPLOAD_DIR からのフルパスを送ってくる想定
-                    # 例: "d:/Users/onisi/Documents/web-app-dev/backend/uploads/filename.txt"
-                    # なので、Path(filepath_str) で直接絶対パスとして扱える
-                    
-                    # ただし、フロントエンドの buildCombinedContent では (パス: ${info.saved_path}) としており、
-                    # info.saved_path は /api/upload から返る saved_path (絶対パス)
-                    
-                    absolute_filepath = Path(filepath_str)
-
-                    # セキュリティチェック: ファイルが UPLOAD_DIR 内にあることを確認
-                    if not absolute_filepath.is_file() or not str(absolute_filepath.resolve()).startswith(str(UPLOAD_DIR.resolve())):
-                        logger.warning(f"添付ファイルへのアクセスが無効か、許可されていません: {filepath_str}")
-                        # 添付ファイル情報を示すプレースホルダーをメッセージから削除 (またはエラーメッセージに置換)
-                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
-                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' は処理できませんでした]")
-                        continue
-
-                    try:
-                        async with aiofiles.open(absolute_filepath, 'r', encoding='utf-8') as f_content:
-                            content_text = await f_content.read()
-                            file_contents_for_api.append(f"\n--- 添付ファイル: {filename} ---\n{content_text}\n--- 添付ファイル終了: {filename} ---")
-                        logger.debug(f"  - Attached file content read: {filename}")
-                        # 添付ファイル情報を示すプレースホルダーをメッセージから削除
-                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
-                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, "").strip()
-
-                    except FileNotFoundError:
-                        logger.error(f"添付ファイルが見つかりません: {absolute_filepath}")
-                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
-                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' は見つかりませんでした]")
-                    except Exception as e:
-                        logger.error(f"添付ファイルの読み込み中にエラー ({absolute_filepath}): {e}")
-                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
-                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' の読み込みエラー]")
-                
-                # 元のメッセージテキストと、読み込んだファイル内容を結合
-                final_content_for_api = processed_content_without_placeholders
-                if file_contents_for_api:
-                    final_content_for_api += "\n" + "\n".join(file_contents_for_api)
-                
-                messages_for_api.append({"role": msg.role, "content": final_content_for_api.strip()})
-                logger.debug(f"  - Role: {msg.role}, Processed Content (first 100 chars): '{final_content_for_api.strip()[:100]}...'")
-
+                logger.debug(f"  - Role: {msg.role}, Content (string, first 100 chars): '{msg.content[:100]}...'")
+                messages_for_api.append({"role": msg.role, "content": msg.content})
+            elif isinstance(msg.content, list):
+                logger.debug(f"  - Role: {msg.role}, Content (list of parts):")
+                for part in msg.content:
+                    if isinstance(part, dict): # Pydanticモデルはdictとしてシリアライズされる
+                        part_type = part.get("type")
+                        if part_type == "text":
+                            logger.debug(f"    - Type: text, Text (first 100 chars): '{part.get('text', '')[:100]}...'")
+                        elif part_type == "image_url":
+                            image_url_data = part.get("image_url", {})
+                            logger.debug(f"    - Type: image_url, URL (first 100 chars): '{image_url_data.get('url', '')[:100]}...'")
+                        else:
+                            logger.debug(f"    - Type: {part_type}, Data: {part}")
+                    else: #予期せぬ型の場合
+                         logger.warning(f"    - Unknown part type in content list: {type(part)}")
+                messages_for_api.append({"role": msg.role, "content": [p.model_dump(exclude_none=True) if isinstance(p, MessageContentPart) else p for p in msg.content]})
             else:
-                logger.warning(f"Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}")
-                pass
+                logger.warning(f"Received content of unexpected type (type: {type(msg.content)}). Skipping. Role: {msg.role}")
+                # エラーとするか、空のcontentとして扱うかなどを検討
+                # ここではスキップせずに、そのまま渡してみる（Groq API側でのエラーに期待）
+                messages_for_api.append({"role": msg.role, "content": msg.content})
 
         api_params = {
             "messages": messages_for_api,
@@ -520,13 +481,49 @@ async def upload_file(file: UploadFile = File(...)):
         async with aiofiles.open(file_path, 'wb') as buffer:
             # content は既に読み込み済みなので、それを書き込む
             await buffer.write(content)
-            
-        logger.info(f"ファイルがアップロードされました: {file.filename} -> {file_path}")
-        return {"filename": file.filename, "saved_path": str(file_path), "message": "ファイルが正常にアップロードされました。"}
+        logger.info(f"ファイルがローカルにアップロードされました: {file.filename} -> {file_path}")
+
+        # Groq API にファイルをアップロード
+        groq_file_id = None
+        if groq_client:
+            try:
+                logger.info(f"Groq API にファイル '{file.filename}' をアップロードしています...")
+                # Groq SDK の client.files.create は file パラメータにファイルオブジェクト (読み取りモードで開いたもの) を期待する
+                # PathLike オブジェクトも受け付けるが、内部でファイルを開く処理が入る。
+                # ここでは既にローカルに保存した file_path (Pathオブジェクト) を渡す。
+                # purpose は 'assistants' や 'fine-tune' などが一般的。
+                # 'chat' purpose が存在するか不明なため、'assistants' を使用。
+                with open(file_path, "rb") as f_for_groq:
+                    # client.files.create は同期メソッドのため、FastAPIの非同期関数内で直接呼び出すとブロッキングする可能性がある。
+                    # 本番環境では asyncio.to_thread を使うか、同期クライアントを別スレッドで実行することを検討。
+                    # ここでは簡略化のため直接呼び出す。
+                    groq_file_response = groq_client.files.create(file=f_for_groq, purpose="assistants")
+                
+                groq_file_id = groq_file_response.id
+                logger.info(f"Groq API へのファイルアップロード成功: {file.filename}, File ID: {groq_file_id}")
+
+            except GroqError as ge:
+                logger.error(f"Groq API へのファイルアップロード中に Groq エラーが発生しました ({file.filename}): {ge}")
+                # Groqへのアップロード失敗は許容せず、エラーとして処理を中断する
+                raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロードエラー: {ge}")
+            except Exception as e:
+                logger.error(f"Groq API へのファイルアップロード中に予期せぬエラーが発生しました ({file.filename}): {e}")
+                logger.exception("Groq API ファイルアップロードエラーの詳細:")
+                raise HTTPException(status_code=500, detail=f"Groq API へのファイルアップロード中に予期せぬエラー: {e}")
+        else:
+            logger.warning("Groq client が初期化されていないため、Groq API へのファイルアップロードをスキップします。")
+            # Groqクライアントがない場合は、groq_file_id は None のまま
+
+        return {
+            "filename": file.filename, 
+            "saved_path": str(file_path), # ローカルの保存パス
+            "groq_file_id": groq_file_id, # Groq にアップロードされた場合のファイルID
+            "message": "ファイルが正常にアップロードされました。"
+        }
     except Exception as e:
-        logger.error(f"ファイルアップロード中にエラーが発生しました ({file.filename}): {e}")
-        logger.exception("ファイルアップロードエラーの詳細:")
-        raise HTTPException(status_code=500, detail=f"ファイルアップロード中にエラーが発生しました: {e}")
+        logger.error(f"ファイルアップロード処理全体でエラーが発生しました ({file.filename}): {e}")
+        logger.exception("ファイルアップロード処理全体のエラー詳細:")
+        raise HTTPException(status_code=500, detail=f"ファイルアップロード処理中にエラーが発生しました: {e}")
 
 # --- File Management Utilities (using pathlib) ---
 def cleanup_old_uploads(days: int = 7):

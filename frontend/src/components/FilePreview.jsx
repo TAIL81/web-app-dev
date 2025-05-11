@@ -59,6 +59,17 @@ function FilePreview({ fileData, onRemove, isLoading = false }) {
           </pre>
         )}
 
+        {/* 画像プレビュー */}
+        {type === 'image' && preview && !error && ( // 'preview' に dataUrl が入る想定
+          <div className="mt-2">
+            <img 
+              src={preview} 
+              alt={`プレビュー ${fileName}`} 
+              className="max-w-full h-auto max-h-32 rounded border border-gray-200 dark:border-gray-700" 
+            />
+          </div>
+        )}
+
         {/* エラーメッセージ */}
         {error && (
           <p className="mt-1 text-xs text-red-600 dark:text-red-400 font-medium break-words">

@@ -1,91 +1,78 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-// サポートするテキストファイルの拡張子 (useChat.js から移動)
+// サポートするテキストファイルの拡張子
 const SUPPORTED_TEXT_EXTENSIONS = /\.(md|py|js|ts|html|css|json|yaml|yml|csv|txt)$/i;
-const MAX_FILE_SIZE_MB = 5; // 例: 5MBを上限とする
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+// サポートする画像MIMEタイプ
+const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_TEXT_FILE_SIZE_MB = 5; // テキストファイルの最大サイズ
+const MAX_IMAGE_FILE_SIZE_MB = 4; // 画像ファイルの最大サイズ (Groq APIのBase64制限に合わせる)
+const MAX_TEXT_FILE_SIZE_BYTES = MAX_TEXT_FILE_SIZE_MB * 1024 * 1024;
+const MAX_IMAGE_FILE_SIZE_BYTES = MAX_IMAGE_FILE_SIZE_MB * 1024 * 1024;
+
 
 /**
- * Fileオブジェクトを非同期で読み込み、内容またはエラーを返すPromiseを生成します。
+ * Fileオブジェクトを非同期で読み込み、プレビュー情報またはエラーを返すPromiseを生成します。
  * @param {File} file - 読み込むFileオブジェクト
- * @returns {Promise<{id: string, file: File, preview: string|null, error: string|null, type: 'text'|'unsupported'}>}
+ * @returns {Promise<{id: string, file: File, preview: string|null, error: string|null, type: 'text'|'image'|'unsupported'}>}
  */
 const readFileForPreview = (file) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     const fileId = uuidv4();
     const fileName = file.name;
-    const fileType = file.type;
+    const fileType = file.type; // MIMEタイプ
     const fileSize = file.size;
 
+    const isTextFile = fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName);
+    const isImageFile = SUPPORTED_IMAGE_TYPES.includes(fileType);
+
     // ファイルサイズチェック
-    if (fileSize > MAX_FILE_SIZE_BYTES) {
+    if (isImageFile && fileSize > MAX_IMAGE_FILE_SIZE_BYTES) {
       resolve({
-        id: fileId,
-        file: file,
-        preview: null,
-        error: `ファイルサイズが大きすぎます (${(fileSize / 1024 / 1024).toFixed(1)}MB)。${MAX_FILE_SIZE_MB}MB以下にしてください。`,
+        id: fileId, file, preview: null,
+        error: `画像ファイルサイズが大きすぎます (${(fileSize / 1024 / 1024).toFixed(1)}MB)。${MAX_IMAGE_FILE_SIZE_MB}MB以下にしてください。`,
         type: 'unsupported',
       });
       return;
     }
+    if (isTextFile && fileSize > MAX_TEXT_FILE_SIZE_BYTES) {
+      resolve({
+        id: fileId, file, preview: null,
+        error: `テキストファイルサイズが大きすぎます (${(fileSize / 1024 / 1024).toFixed(1)}MB)。${MAX_TEXT_FILE_SIZE_MB}MB以下にしてください。`,
+        type: 'unsupported',
+      });
+      return;
+    }
+    if (!isTextFile && !isImageFile) {
+        resolve({ id: fileId, file, preview: null, error: 'サポート外のファイル形式です。テキストまたは画像ファイルを選択してください。', type: 'unsupported' });
+        return;
+    }
 
-    // テキストファイルかどうかの判定
-    const isTextFile = fileType.startsWith('text/') || SUPPORTED_TEXT_EXTENSIONS.test(fileName);
 
     reader.onload = (e) => {
       if (isTextFile) {
-        // テキストファイルの場合、最初の数行をプレビューとして取得
         const content = e.target.result;
         const lines = content.split('\n');
         const previewText = lines.slice(0, 5).join('\n') + (lines.length > 5 ? '\n...' : '');
-        resolve({
-          id: fileId,
-          file: file,
-          preview: previewText, // テキスト内容のプレビュー
-          error: null,
-          type: 'text',
-        });
-      } else {
-        // テキストファイル以外はサポート外とする (将来的には画像なども対応可能)
-        resolve({
-          id: fileId,
-          file: file,
-          preview: null, // サポート外の場合はプレビューなし
-          error: `サポート外のファイル形式です。`, // エラーメッセージを簡略化
-          type: 'unsupported',
-        });
+        resolve({ id: fileId, file, preview: previewText, error: null, type: 'text' });
+      } else if (isImageFile) {
+        resolve({ id: fileId, file, preview: e.target.result, error: null, type: 'image' }); // e.target.result は dataURL
       }
+      // このelseは通常到達しないはず (上で判定済みのため)
     };
 
     reader.onerror = (err) => {
       console.error(`File reading error for ${fileName}:`, err);
-      resolve({
-        id: fileId,
-        file: file,
-        preview: null,
-        error: 'ファイル読み込みエラー。', // エラーメッセージを簡略化
-        type: 'unsupported',
-      });
+      resolve({ id: fileId, file, preview: null, error: 'ファイル読み込みエラー。', type: 'unsupported' });
     };
 
-    // テキストファイルのみ読み込み試行
     if (isTextFile) {
       reader.readAsText(file);
-    } else {
-      // テキスト以外は onload でエラー処理されるのでここでは何もしない
-      // (onload が reader.readAsText の後に呼ばれることを保証するため)
-      // ダミーの読み込みを開始して onload/onerror をトリガーさせる
-      // (readAsDataURL などでも良いが、ここでは不要なので空で)
-       try {
-         // 何か読み込みを開始しないと onload/onerror が呼ばれない場合がある
-         reader.readAsArrayBuffer(new Blob());
-       } catch (e) {
-         // Blob作成失敗など、予期せぬエラーはonerrorで処理される想定
-         console.error("Dummy read trigger failed:", e);
-       }
+    } else if (isImageFile) {
+      reader.readAsDataURL(file); // 画像はDataURLとして読み込む
     }
+    // サポート外の場合は既に上でresolveされている
   });
 };
 
@@ -94,74 +81,24 @@ const useFileUpload = () => {
   const [isDragging, setIsDragging] = useState(false);
 
   // ファイルを追加する関数 (input onChange, drop で使用)
+  // このフックはファイルの選択とプレビュー生成のみを担当。実際のアップロードはuseChatで行う。
   const addFiles = useCallback(async (files) => {
     if (!files || files.length === 0) return;
 
-    // まずプレビュー用の情報を生成
-    const newFilesPreviewPromises = Array.from(files).map(readFileForPreview);
-    const newFilePreviewResults = await Promise.all(newFilesPreviewPromises);
+    const newFilesPromises = Array.from(files).map(readFileForPreview);
+    const newFileResults = await Promise.all(newFilesPromises);
 
-    // プレビュー情報をUIに即時反映
-    setUploadedFiles(prev => [...prev, ...newFilePreviewResults.filter(f => !f.error)]); // エラーのないものだけ一旦追加
-
-    // FormData を作成してファイルを追加
-    const formData = new FormData();
-    const filesToUpload = newFilePreviewResults.filter(f => !f.error && f.file); // エラーがなく、Fileオブジェクトが存在するもの
-    
-    if (filesToUpload.length === 0) {
-      // アップロードするファイルがない場合は、エラーのあるファイルのみUIに残す
-      setUploadedFiles(prev => prev.map(existingFile => {
-        const erroredPreview = newFilePreviewResults.find(nf => nf.id === existingFile.id && nf.error);
-        return erroredPreview || existingFile;
-      }));
-      return;
-    }
-
-    filesToUpload.forEach(fileData => {
-      formData.append('file', fileData.file, fileData.file.name); // FastAPI側は 'file' というキーを期待
-    });
-
-    try {
-      // バックエンドにアップロード
-      const response = await fetch('/api/upload', { // FastAPIのエンドポイント
-        method: 'POST',
-        body: formData,
-        // headers: { 'Content-Type': 'multipart/form-data' } // FormDataの場合、ブラウザが自動で設定するので通常不要
+    setUploadedFiles(prev => {
+      const updatedFiles = [...prev];
+      newFileResults.forEach(newFile => {
+        // 重複チェック (オプション、ファイル名とサイズで簡易的に)
+        // const isDuplicate = prev.some(existingFile => existingFile.file.name === newFile.file.name && existingFile.file.size === newFile.file.size);
+        // if (!isDuplicate) {
+        updatedFiles.push(newFile);
+        // }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'アップロードに失敗しました。サーバーからの応答が無効です。' }));
-        console.error('File upload failed:', errorData);
-        // アップロード失敗したファイルのプレビューにエラー情報を更新
-        setUploadedFiles(prev =>
-          prev.map(pf => {
-            if (filesToUpload.some(f_to_upload => f_to_upload.id === pf.id)) {
-              return { ...pf, error: errorData.detail || 'アップロード失敗' };
-            }
-            return pf;
-          })
-        );
-        return;
-      }
-
-      const result = await response.json();
-      console.log('File upload successful:', result);
-      // アップロード成功時の処理 (必要であればプレビュー情報を更新など)
-      // 現状では特にプレビュー情報を更新する必要はないが、サーバーからの情報で何かしたい場合はここで行う
-      // 例えば、サーバー側でファイル名が変更された場合などに対応
-
-    } catch (error) {
-      console.error('Error during file upload:', error);
-      // ネットワークエラーなどでアップロード失敗したファイルのプレビューにエラー情報を更新
-      setUploadedFiles(prev =>
-        prev.map(pf => {
-          if (filesToUpload.some(f_to_upload => f_to_upload.id === pf.id)) {
-            return { ...pf, error: 'アップロード中にネットワークエラーが発生しました。' };
-          }
-          return pf;
-        })
-      );
-    }
+      return updatedFiles;
+    });
   }, []);
 
   // 特定のファイルをリストから削除する関数

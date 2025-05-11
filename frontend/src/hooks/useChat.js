@@ -9,6 +9,21 @@ const initialMessages = [
   { id: uuidv4(), role: 'assistant', content: '本日はどのようなお手伝いをさせていただけますか？' }
 ]; // チャットの初期メッセージ
 
+// --- ヘルパー関数 (Base64エンコード) ---
+/**
+ * FileオブジェクトをBase64エンコードされた文字列として非同期で読み込みます。
+ * @param {File} file - 読み込むFileオブジェクト
+ * @returns {Promise<string>} Base64エンコードされたファイル内容 (data URL形式)
+ */
+const encodeFileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result); // result は data:image/jpeg;base64,... のような形式
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
 // --- メインフック ---
 const useChat = () => {
   // --- StateとRef ---
@@ -65,20 +80,28 @@ const useChat = () => {
   // --- ヘルパー関数 (メッセージ送信ロジック) ---
 
   /**
-   * テキスト入力とアップロードされたファイル情報からAPI送信用コンテンツ文字列を構築します。
+   * テキスト入力とアップロードされたファイル情報からユーザー表示用コンテンツ文字列を構築します。
+   * API送信用のメッセージは prepareApiMessages で別途構築されます。
    * @param {string} textInput - 現在のテキスト入力値
-   * @param {Array<{filename: string, saved_path: string}>} uploadedFileInfos - アップロードされたファイル情報 ({filename, saved_path}) の配列
-   * @returns {string} API送信用コンテンツ文字列
+   * @param {Array<{filename: string, type: 'text' | 'image', saved_path?: string, groq_file_id?: string, base64_content?: string}>} processedFileInfos - 処理されたファイル情報
+   * @returns {string} ユーザー表示用コンテンツ文字列
    */
-  const buildCombinedContent = (textInput, uploadedFileInfos) => {
-    let combinedContent = textInput;
-    if (uploadedFileInfos && uploadedFileInfos.length > 0) {
-      const fileDescriptions = uploadedFileInfos.map(info =>
-        `\n[添付ファイル: ${info.filename} (パス: ${info.saved_path})]`
-      ).join('');
-      combinedContent += fileDescriptions;
+  const buildUserDisplayContent = (textInput, processedFileInfos) => {
+    let displayContent = textInput;
+    if (processedFileInfos && processedFileInfos.length > 0) {
+      const fileDescriptions = processedFileInfos.map(info => {
+        if (info.type === 'image') {
+          return `\n[添付画像: ${info.filename}]`;
+        } else if (info.groq_file_id) {
+          return `\n[添付ファイル: ${info.filename} (Groq File ID: ${info.groq_file_id})]`;
+        } else if (info.saved_path) {
+          return `\n[添付ファイル: ${info.filename} (ローカルパス: ${info.saved_path})]`;
+        }
+        return `\n[添付ファイル: ${info.filename}]`; // フォールバック
+      }).join('');
+      displayContent += fileDescriptions;
     }
-    return combinedContent;
+    return displayContent;
   };
 
   /**
@@ -104,38 +127,61 @@ const useChat = () => {
 
   /**
    * APIに送信するためのメッセージ履歴配列を準備します (履歴件数制限あり)。
-   * @param {Array<object>} allMessages - 全てのメッセージ履歴 (今回追加したユーザーテキスト含む)
-   * @param {object|null} currentTextMessage - 今回追加されたユーザーテキストメッセージオブジェクト
-   * @param {string} combinedContent - buildCombinedContentで生成された今回のユーザー入力コンテンツ (ファイル含む)
-   * @returns {Array<object>} API送信用に整形されたメッセージ配列 (role, content のみ)
+   * 画像ファイルがある場合は、content を配列形式にします。
+   * @param {Array<object>} allMessages - 全てのメッセージ履歴
+   * @param {object|null} currentUserTextMessage - 今回のユーザーテキストメッセージオブジェクト
+   * @param {string} textInput - ユーザーのテキスト入力
+   * @param {Array<{filename: string, type: 'text' | 'image', saved_path?: string, groq_file_id?: string, base64_content?: string}>} processedFileInfos - 処理されたファイル情報
+   * @returns {Array<object>} API送信用に整形されたメッセージ配列
    */
-  const prepareApiMessages = (allMessages, currentTextMessage, combinedContent) => {
-    const MAX_HISTORY_PAIRS = 5; // 保持する会話の往復数
-    const MAX_API_MESSAGES = MAX_HISTORY_PAIRS * 2; // APIに含める最大メッセージ数 (過去分)
+  const prepareApiMessages = (allMessages, currentUserTextMessage, textInput, processedFileInfos) => {
+    const MAX_HISTORY_PAIRS = 5;
+    const MAX_API_MESSAGES = MAX_HISTORY_PAIRS * 2;
 
-    // API履歴に含める過去メッセージをフィルタリング (今回追加したテキストメッセージは除外)
-    const pastMessagesOnly = currentTextMessage
-        ? allMessages.filter(msg => msg.id !== currentTextMessage.id)
+    const pastMessagesOnly = currentUserTextMessage
+        ? allMessages.filter(msg => msg.id !== currentUserTextMessage.id)
         : allMessages;
 
     const relevantPastMessages = pastMessagesOnly.filter(msg => {
-      if (msg.hidden) return false;
-      // ファイル添付を示す情報は messages 配列にはもう無いため、単純にroleで判断
-      return msg.role === 'user' || (msg.role === 'assistant' && typeof msg.content === 'string');
+        if (msg.hidden) return false;
+        // 過去のメッセージは content が文字列であることを想定
+        return msg.role === 'user' || (msg.role === 'assistant' && typeof msg.content === 'string');
     });
 
-    // 最新のメッセージから指定件数分を取得
     const limitedPastMessages = relevantPastMessages.slice(-MAX_API_MESSAGES);
-    // APIに必要な形式 (role, content) にマッピング
     const pastMessagesForApi = limitedPastMessages.map(msg => ({
         role: msg.role,
-        content: msg.content
+        content: msg.content // 過去メッセージは content が文字列
     }));
 
-    // 今回のユーザー入力をAPI形式で作成 (ファイル内容含む)
-    const currentMessageForApi = { role: 'user', content: combinedContent };
+    // 今回のユーザー入力メッセージの content を構築
+    let currentMessageContent = [];
+    if (textInput) {
+        currentMessageContent.push({ type: "text", text: textInput });
+    }
 
-    // 過去の履歴と今回の入力を結合
+    processedFileInfos.forEach(info => {
+        if (info.type === 'image' && info.base64_content) {
+            currentMessageContent.push({
+                type: "image_url",
+                image_url: { "url": info.base64_content } // base64_content は data URL 形式
+            });
+        } else if (info.type === 'text' && info.groq_file_id) {
+            // テキストファイルの場合、Groq File ID をテキストとして含めるか、
+            // バックエンドでファイル内容を取得して結合するかはバックエンドの実装による。
+            // ここでは、Groq File ID を示す情報をテキストとして追加する。
+            // バックエンドがこれを解釈してファイル内容を差し込む想定。
+             currentMessageContent.push({ type: "text", text: `\n[添付ファイル: ${info.filename} (Groq File ID: ${info.groq_file_id})]` });
+        } else if (info.type === 'text' && info.saved_path) {
+            // ローカルパスの場合も同様
+            currentMessageContent.push({ type: "text", text: `\n[添付ファイル: ${info.filename} (ローカルパス: ${info.saved_path})]` });
+        }
+    });
+    
+    // content が空配列の場合はテキスト入力のみとする (Groq API仕様に合わせる)
+    const finalCurrentContent = currentMessageContent.length > 0 ? currentMessageContent : textInput;
+
+    const currentMessageForApi = { role: 'user', content: finalCurrentContent };
     const messagesForApi = [...pastMessagesForApi, currentMessageForApi];
 
     if (process.env.NODE_ENV === 'development') {
@@ -179,13 +225,14 @@ const useChat = () => {
    */
   const handleSend = useCallback(async (uploadedFilesData = []) => {
     const currentInput = input.trim();
-    // 送信する有効なファイルのみをフィルタリング (テキストファイルでエラーがないもの)
-    const validFilesToUpload = uploadedFilesData.filter(f => f.type === 'text' && !f.error);
+    // 送信する有効なファイルのみをフィルタリング (エラーがないもの)
+    // 画像とテキストファイルの両方を許容
+    const validFilesToProcess = uploadedFilesData.filter(f => !f.error && (f.type === 'text' || f.file?.type?.startsWith('image/')));
 
     // 送信条件チェック
-    if ((!currentInput && validFilesToUpload.length === 0) || isLoading || isModelsLoading || !selectedModel) { // isExpanding を削除
+    if ((!currentInput && validFilesToProcess.length === 0) || isLoading || isModelsLoading || !selectedModel) {
       if (process.env.NODE_ENV === 'development') {
-        console.log("送信条件未達:", { currentInput, validFiles: validFilesToUpload.length, isLoading, isModelsLoading, selectedModel });
+        console.log("送信条件未達:", { currentInput, validFiles: validFilesToProcess.length, isLoading, isModelsLoading, selectedModel });
       }
       if (!isLoading && (isModelsLoading || !selectedModel)) {
           setError("送信前にモデルを選択してください (ロード中または利用不可)。");
@@ -198,55 +245,73 @@ const useChat = () => {
     let newUserTextMessage = null; // スコープ内で参照するため
 
     try {
-      // 1. ファイルをバックエンドにアップロード
-      const uploadedFileInfos = [];
-      if (validFilesToUpload.length > 0) {
-        const uploadPromises = validFilesToUpload.map(async (fileData) => {
-          const formData = new FormData();
-          formData.append('file', fileData.file);
-          try {
-            const uploadResponse = await fetch(`${BACKEND_URL}/api/upload`, {
-              method: 'POST',
-              body: formData,
-            });
-            if (!uploadResponse.ok) {
-              const errorData = await uploadResponse.json().catch(() => ({ detail: `ファイルアップロードエラー: ${uploadResponse.status}` }));
-              throw new Error(errorData.detail || `ファイル '${fileData.file.name}' のアップロードに失敗しました。`);
+      const processedFileInfos = [];
+
+      // 1. ファイルの前処理 (テキストはアップロード、画像はBase64エンコード)
+      if (validFilesToProcess.length > 0) {
+        const fileProcessingPromises = validFilesToProcess.map(async (fileData) => {
+          if (fileData.file?.type?.startsWith('image/')) {
+            // 画像ファイルの場合
+            if (fileData.file.size > 4 * 1024 * 1024) { // 4MB制限
+              setError(`画像ファイル '${fileData.file.name}' が大きすぎます (最大4MB)。`);
+              return null;
             }
-            return await uploadResponse.json(); // {filename, saved_path, message}
-          } catch (uploadError) {
-            console.error(`Error uploading ${fileData.file.name}:`, uploadError);
-            setError(`ファイル '${fileData.file.name}' のアップロード中にエラー: ${uploadError.message}`);
-            return null; // エラーが発生したファイルは null を返す
+            try {
+              const base64_content = await encodeFileToBase64(fileData.file);
+              return { filename: fileData.file.name, type: 'image', base64_content };
+            } catch (encodeError) {
+              console.error(`Error encoding image ${fileData.file.name}:`, encodeError);
+              setError(`画像 '${fileData.file.name}' の処理中にエラーが発生しました。`);
+              return null;
+            }
+          } else if (fileData.type === 'text') {
+            // テキストファイルの場合 (従来通りバックエンドにアップロード)
+            const formData = new FormData();
+            formData.append('file', fileData.file);
+            try {
+              const uploadResponse = await fetch(`${BACKEND_URL}/api/upload`, {
+                method: 'POST',
+                body: formData,
+              });
+              if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json().catch(() => ({ detail: `ファイルアップロードエラー: ${uploadResponse.status}` }));
+                throw new Error(errorData.detail || `ファイル '${fileData.file.name}' のアップロードに失敗しました。`);
+              }
+              const result = await uploadResponse.json();
+              return { filename: result.filename, type: 'text', saved_path: result.saved_path, groq_file_id: result.groq_file_id };
+            } catch (uploadError) {
+              console.error(`Error uploading ${fileData.file.name}:`, uploadError);
+              setError(`ファイル '${fileData.file.name}' のアップロード中にエラー: ${uploadError.message}`);
+              return null;
+            }
           }
+          return null; // サポート外のタイプ
         });
-        const results = await Promise.all(uploadPromises);
+
+        const results = await Promise.all(fileProcessingPromises);
         results.forEach(result => {
-          if (result && result.saved_path) { // 正常にアップロードされたものだけ追加
-            uploadedFileInfos.push({filename: result.filename, saved_path: result.saved_path});
+          if (result) {
+            processedFileInfos.push(result);
           }
         });
-        // 1つでもアップロードに失敗したら、エラーを表示して処理を中断することも検討
-        if (uploadedFileInfos.length !== validFilesToUpload.length) {
-            console.warn("いくつかのファイルのアップロードに失敗しました。");
-            // 必要であればここでユーザーに通知し、処理を中断する
-            // setError("いくつかのファイルのアップロードに失敗しました。");
-            // setIsLoading(false);
-            // return;
+
+        if (processedFileInfos.length !== validFilesToProcess.length) {
+            console.warn("いくつかのファイルの処理に失敗しました。");
+             // エラーが発生したファイルがある場合、ここで処理を中断するかどうかを決定
         }
       }
+      
+      // 2. ユーザー表示用コンテンツ作成
+      const userDisplayContent = buildUserDisplayContent(currentInput, processedFileInfos);
 
-      // 2. API送信用コンテンツ作成 (テキスト + アップロードされたファイル情報)
-      const combinedContent = buildCombinedContent(currentInput, uploadedFileInfos);
+      // 3. UI更新 (ユーザーのテキストメッセージのみをまず表示)
+      const { updatedMessages, newUserTextMessage: createdMessage } = updateUiBeforeSend(userDisplayContent, messages, setMessages);
+      newUserTextMessage = createdMessage;
+      setInput('');
 
-      // 3. UI更新 (テキストメッセージ追加、送信済みフラグ更新)
-      // この時点で uploadedFilesData は useFileUpload フック側でクリアされる想定
-      const { updatedMessages, newUserTextMessage: createdMessage } = updateUiBeforeSend(currentInput, messages, setMessages);
-      newUserTextMessage = createdMessage; // エラーハンドリング用に保持
-      setInput(''); // 入力欄をクリア (ファイルプレビューはChatInput側でクリアされる想定)
-
-      // 4. API送信準備 (API用のメッセージ履歴作成)
-      const messagesForApi = prepareApiMessages(updatedMessages, newUserTextMessage, combinedContent);
+      // 4. API送信用メッセージ履歴作成
+      // prepareApiMessages はテキスト入力と処理済みファイル情報 (画像はbase64、テキストはID/パス) を受け取る
+      const messagesForApi = prepareApiMessages(updatedMessages, newUserTextMessage, currentInput, processedFileInfos);
 
       // 送信するユーザーコンテンツがない場合は異常系 (通常発生しないはず)
       if (!messagesForApi.some(m => m.role === 'user')) {
