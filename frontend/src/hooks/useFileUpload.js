@@ -97,13 +97,71 @@ const useFileUpload = () => {
   const addFiles = useCallback(async (files) => {
     if (!files || files.length === 0) return;
 
-    // 新しいファイルリストを非同期で読み込み
-    const newFilesPromises = Array.from(files).map(readFileForPreview);
-    const newFileResults = await Promise.all(newFilesPromises);
+    // まずプレビュー用の情報を生成
+    const newFilesPreviewPromises = Array.from(files).map(readFileForPreview);
+    const newFilePreviewResults = await Promise.all(newFilesPreviewPromises);
 
-    // 既存のファイルリストとマージ (重複ファイルはIDでチェックして避ける - 必要なら)
-    // ここでは単純に追加するが、重複を避けるロジックを追加しても良い
-    setUploadedFiles(prev => [...prev, ...newFileResults]);
+    // プレビュー情報をUIに即時反映
+    setUploadedFiles(prev => [...prev, ...newFilePreviewResults.filter(f => !f.error)]); // エラーのないものだけ一旦追加
+
+    // FormData を作成してファイルを追加
+    const formData = new FormData();
+    const filesToUpload = newFilePreviewResults.filter(f => !f.error && f.file); // エラーがなく、Fileオブジェクトが存在するもの
+    
+    if (filesToUpload.length === 0) {
+      // アップロードするファイルがない場合は、エラーのあるファイルのみUIに残す
+      setUploadedFiles(prev => prev.map(existingFile => {
+        const erroredPreview = newFilePreviewResults.find(nf => nf.id === existingFile.id && nf.error);
+        return erroredPreview || existingFile;
+      }));
+      return;
+    }
+
+    filesToUpload.forEach(fileData => {
+      formData.append('file', fileData.file, fileData.file.name); // FastAPI側は 'file' というキーを期待
+    });
+
+    try {
+      // バックエンドにアップロード
+      const response = await fetch('/api/upload', { // FastAPIのエンドポイント
+        method: 'POST',
+        body: formData,
+        // headers: { 'Content-Type': 'multipart/form-data' } // FormDataの場合、ブラウザが自動で設定するので通常不要
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'アップロードに失敗しました。サーバーからの応答が無効です。' }));
+        console.error('File upload failed:', errorData);
+        // アップロード失敗したファイルのプレビューにエラー情報を更新
+        setUploadedFiles(prev =>
+          prev.map(pf => {
+            if (filesToUpload.some(f_to_upload => f_to_upload.id === pf.id)) {
+              return { ...pf, error: errorData.detail || 'アップロード失敗' };
+            }
+            return pf;
+          })
+        );
+        return;
+      }
+
+      const result = await response.json();
+      console.log('File upload successful:', result);
+      // アップロード成功時の処理 (必要であればプレビュー情報を更新など)
+      // 現状では特にプレビュー情報を更新する必要はないが、サーバーからの情報で何かしたい場合はここで行う
+      // 例えば、サーバー側でファイル名が変更された場合などに対応
+
+    } catch (error) {
+      console.error('Error during file upload:', error);
+      // ネットワークエラーなどでアップロード失敗したファイルのプレビューにエラー情報を更新
+      setUploadedFiles(prev =>
+        prev.map(pf => {
+          if (filesToUpload.some(f_to_upload => f_to_upload.id === pf.id)) {
+            return { ...pf, error: 'アップロード中にネットワークエラーが発生しました。' };
+          }
+          return pf;
+        })
+      );
+    }
   }, []);
 
   // 特定のファイルをリストから削除する関数

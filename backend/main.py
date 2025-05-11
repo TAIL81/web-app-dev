@@ -5,11 +5,13 @@ import time
 import sys
 # import signal # signal モジュールをインポート # 未使用のため削除
 import logging # logging モジュールをインポート
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq, GroqError, AuthenticationError, RateLimitError, APIConnectionError, BadRequestError
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+from pathlib import Path # pathlib をインポート
+import aiofiles # aiofiles をインポート
 
 import uvicorn
 import traceback
@@ -46,6 +48,8 @@ app.add_middleware(
 # --- Constants ---
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 DEFAULT_SYSTEM_PROMPT = "Respond in fluent Japanese"
+UPLOAD_DIR = Path(__file__).parent / "uploads" # アップロードディレクトリを定義
+UPLOAD_DIR.mkdir(exist_ok=True) # アップロードディレクトリを作成
 
 # --- Configuration Loading (Modified for Startup) ---
 def load_config_on_startup():
@@ -243,13 +247,77 @@ async def chat(request: ChatRequest):
             logger.debug("Added system prompt.") # システムプロンプト追加はDEBUG
 
         logger.debug("Processing messages:") # メッセージ処理開始はDEBUG
-        for msg in request.messages: # main_chat の場合のみ実行される (他の purpose は現状ない)
-                if isinstance(msg.content, str):
-                    messages_for_api.append({"role": msg.role, "content": msg.content})
-                    logger.debug(f"  - Role: {msg.role}, Content (first 100 chars): '{msg.content[:100]}...'")
-                else:
-                    logger.warning(f"Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}")
-                    pass
+        import re # 正規表現モジュールをインポート
+        for msg in request.messages:
+            processed_content = msg.content
+            if isinstance(msg.content, str):
+                # ファイル添付情報を検索 (例: "[添付ファイル: test.txt (パス: uploads/test.txt)]")
+                # この正規表現はフロントエンドの実装と一致させる必要がある
+                file_attachment_pattern = r"\[添付ファイル: (.+?) \(パス: (.+?)\)\]"
+                attachments = re.findall(file_attachment_pattern, msg.content)
+                
+                file_contents_for_api = []
+                processed_content_without_placeholders = msg.content
+
+                for filename, filepath_str in attachments:
+                    filepath = Path(filepath_str)
+                    # UPLOAD_DIR からの相対パスであることを確認し、セキュリティのために UPLOAD_DIR 内に限定する
+                    # Path(filepath_str) が絶対パスの場合や、UPLOAD_DIR 外を指す場合はエラーとするか、無視する
+                    # ここでは UPLOAD_DIR からの相対パスとして扱う (フロントエンドがそのように送信する前提)
+                    # 実際には UPLOAD_DIR / Path(filepath_str).name のようにファイル名だけを使う方が安全
+                    
+                    # より安全なファイルパスの構築 (UPLOAD_DIR を基準とする)
+                    # フロントエンドからは saved_path (UPLOAD_DIRからの相対パスまたは絶対パス) が送られてくる
+                    # ここでは UPLOAD_DIR と filepath_str (saved_path) を結合するが、
+                    # filepath_str が絶対パスの場合はそれが優先される。
+                    # セキュリティのため、filepath が UPLOAD_DIR の中にあることを確認する。
+                    
+                    # フロントエンドは saved_path として UPLOAD_DIR からのフルパスを送ってくる想定
+                    # 例: "d:/Users/onisi/Documents/web-app-dev/backend/uploads/filename.txt"
+                    # なので、Path(filepath_str) で直接絶対パスとして扱える
+                    
+                    # ただし、フロントエンドの buildCombinedContent では (パス: ${info.saved_path}) としており、
+                    # info.saved_path は /api/upload から返る saved_path (絶対パス)
+                    
+                    absolute_filepath = Path(filepath_str)
+
+                    # セキュリティチェック: ファイルが UPLOAD_DIR 内にあることを確認
+                    if not absolute_filepath.is_file() or not str(absolute_filepath.resolve()).startswith(str(UPLOAD_DIR.resolve())):
+                        logger.warning(f"添付ファイルへのアクセスが無効か、許可されていません: {filepath_str}")
+                        # 添付ファイル情報を示すプレースホルダーをメッセージから削除 (またはエラーメッセージに置換)
+                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
+                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' は処理できませんでした]")
+                        continue
+
+                    try:
+                        async with aiofiles.open(absolute_filepath, 'r', encoding='utf-8') as f_content:
+                            content_text = await f_content.read()
+                            file_contents_for_api.append(f"\n--- 添付ファイル: {filename} ---\n{content_text}\n--- 添付ファイル終了: {filename} ---")
+                        logger.debug(f"  - Attached file content read: {filename}")
+                        # 添付ファイル情報を示すプレースホルダーをメッセージから削除
+                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
+                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, "").strip()
+
+                    except FileNotFoundError:
+                        logger.error(f"添付ファイルが見つかりません: {absolute_filepath}")
+                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
+                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' は見つかりませんでした]")
+                    except Exception as e:
+                        logger.error(f"添付ファイルの読み込み中にエラー ({absolute_filepath}): {e}")
+                        placeholder_to_remove = f"[添付ファイル: {filename} (パス: {filepath_str})]"
+                        processed_content_without_placeholders = processed_content_without_placeholders.replace(placeholder_to_remove, f"[添付ファイル '{filename}' の読み込みエラー]")
+                
+                # 元のメッセージテキストと、読み込んだファイル内容を結合
+                final_content_for_api = processed_content_without_placeholders
+                if file_contents_for_api:
+                    final_content_for_api += "\n" + "\n".join(file_contents_for_api)
+                
+                messages_for_api.append({"role": msg.role, "content": final_content_for_api.strip()})
+                logger.debug(f"  - Role: {msg.role}, Processed Content (first 100 chars): '{final_content_for_api.strip()[:100]}...'")
+
+            else:
+                logger.warning(f"Received non-string content (type: {type(msg.content)}). Skipping. Role: {msg.role}")
+                pass
 
         api_params = {
             "messages": messages_for_api,
@@ -390,6 +458,127 @@ async def get_available_models():
         # ここでは空リストを返すことで、フロントエンドが「利用可能なモデルなし」と表示できるようにする
         return ModelListResponse(models=[])
         # または raise HTTPException(status_code=500, detail="Failed to retrieve available models.")
+
+# --- File Upload Endpoint ---
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Handles single file uploads.
+    Saves the file to the UPLOAD_DIR using pathlib and aiofiles.
+    Applies validation for file size and type based on config.json.
+    """
+    global config # グローバル設定を参照
+    upload_settings = config.get("file_upload", {})
+    max_size_mb = upload_settings.get("max_size_mb", 10) # デフォルト10MB
+    allowed_types = upload_settings.get("allowed_types", []) # デフォルト空リスト (全て許可しない)
+    
+    # ファイルサイズのバリデーション
+    # UploadFile.size は FastAPI 0.100.0 以降で利用可能。それ以前は file.file.seek(0, 2) などで取得。
+    # ここでは FastAPI が比較的新しいバージョンであることを期待。
+    # もし古い場合は、content = await file.read() の後に len(content) でチェックする。
+    # ただし、大きなファイルをメモリに読み込むことになるため、ストリーミング処理が望ましい。
+    # ここでは簡潔さのため、まず全体を読み込んでからサイズチェックを行う。
+    
+    content = await file.read() # 先に内容を読み込む
+    file_size_bytes = len(content)
+    max_size_bytes = max_size_mb * 1024 * 1024
+
+    if file_size_bytes > max_size_bytes:
+        logger.warning(f"ファイルサイズ超過: {file.filename} ({file_size_bytes} bytes > {max_size_bytes} bytes)")
+        raise HTTPException(
+            status_code=413, # Payload Too Large
+            detail=f"ファイルサイズが大きすぎます。最大 {max_size_mb}MB までです。"
+        )
+
+    # ファイルタイプのバリデーション
+    if allowed_types and file.content_type not in allowed_types:
+        logger.warning(f"許可されないファイルタイプ: {file.filename} ({file.content_type})")
+        raise HTTPException(
+            status_code=415, # Unsupported Media Type
+            detail=f"許可されていないファイルタイプです。許可されているタイプ: {', '.join(allowed_types)}"
+        )
+
+    try:
+        # UPLOAD_DIR は config からも取得できるようにする (オプション)
+        # upload_dir_name = upload_settings.get("upload_dir", "uploads")
+        # current_upload_dir = Path(__file__).parent / upload_dir_name
+        # current_upload_dir.mkdir(exist_ok=True)
+        # file_path = current_upload_dir / file.filename
+        # 上記は UPLOAD_DIR がグローバル定数として定義されているため、ここでは UPLOAD_DIR を直接使用
+
+        file_path = UPLOAD_DIR / file.filename
+        
+        # ファイル名が衝突する場合の処理 (例: タイムスタンプを付与)
+        # ここでは単純に上書きするが、必要に応じて変更
+        # count = 0
+        # original_stem = file_path.stem
+        # original_suffix = file_path.suffix
+        # while file_path.exists():
+        #     count += 1
+        #     file_path = UPLOAD_DIR / f"{original_stem}_{count}{original_suffix}"
+
+        async with aiofiles.open(file_path, 'wb') as buffer:
+            # content は既に読み込み済みなので、それを書き込む
+            await buffer.write(content)
+            
+        logger.info(f"ファイルがアップロードされました: {file.filename} -> {file_path}")
+        return {"filename": file.filename, "saved_path": str(file_path), "message": "ファイルが正常にアップロードされました。"}
+    except Exception as e:
+        logger.error(f"ファイルアップロード中にエラーが発生しました ({file.filename}): {e}")
+        logger.exception("ファイルアップロードエラーの詳細:")
+        raise HTTPException(status_code=500, detail=f"ファイルアップロード中にエラーが発生しました: {e}")
+
+# --- File Management Utilities (using pathlib) ---
+def cleanup_old_uploads(days: int = 7):
+    """
+    指定された日数より古いアップロードファイルを削除します。
+    この関数は同期的に動作するため、バックグラウンドタスクで実行することを推奨します。
+    """
+    global config
+    upload_settings = config.get("file_upload", {})
+    # UPLOAD_DIR はグローバル定数を使用
+    # upload_dir_name = upload_settings.get("upload_dir", "uploads")
+    # current_upload_dir = Path(__file__).parent / upload_dir_name
+    
+    if not UPLOAD_DIR.exists():
+        logger.info(f"アップロードディレクトリ {UPLOAD_DIR} が存在しないため、クリーンアップをスキップします。")
+        return
+
+    cutoff_time = time.time() - (days * 86400) # days を秒に変換
+    cleaned_files_count = 0
+    cleaned_dirs_count = 0
+
+    logger.info(f"{days}日以上古いファイルのクリーンアップを開始します ({UPLOAD_DIR})...")
+    try:
+        for item in UPLOAD_DIR.iterdir(): # UPLOAD_DIR 直下のアイテムをイテレート
+            try:
+                item_stat = item.stat()
+                if item_stat.st_mtime < cutoff_time:
+                    if item.is_file():
+                        item.unlink()
+                        logger.debug(f"古いファイルを削除しました: {item}")
+                        cleaned_files_count += 1
+                    elif item.is_dir():
+                        # shutil.rmtree は同期的なので、非同期コンテキストで使う場合は注意
+                        # ここでは同期関数内なので問題ない
+                        import shutil # ここでインポート
+                        shutil.rmtree(item)
+                        logger.debug(f"古いディレクトリを削除しました: {item}")
+                        cleaned_dirs_count += 1
+            except FileNotFoundError:
+                logger.warning(f"クリーンアップ中にファイルが見つかりませんでした (おそらく並行して削除された): {item}")
+            except Exception as e:
+                logger.error(f"ファイル/ディレクトリ ({item}) のクリーンアップ中にエラー: {e}")
+        logger.info(f"クリーンアップ完了。削除されたファイル数: {cleaned_files_count}, 削除されたディレクトリ数: {cleaned_dirs_count}")
+    except Exception as e:
+        logger.error(f"アップロードディレクトリ ({UPLOAD_DIR}) のイテレーション中にエラー: {e}")
+
+# BackgroundTasks に追加する例 (FastAPI の BackgroundTasks を利用)
+# async def some_request_handler(background_tasks: BackgroundTasks):
+#     # ... 他の処理 ...
+#     background_tasks.add_task(cleanup_old_uploads, days=7)
+#     return {"message": "Cleanup task added to background"}
+
 
 # --- Root Endpoint (変更なし) ---
 @app.get("/")

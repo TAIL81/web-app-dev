@@ -9,22 +9,6 @@ const initialMessages = [
   { id: uuidv4(), role: 'assistant', content: '本日はどのようなお手伝いをさせていただけますか？' }
 ]; // チャットの初期メッセージ
 
-// --- ヘルパー関数 (ファイル内容読み込み) ---
-/**
- * Fileオブジェクトの内容をテキストとして非同期で読み込みます。
- * @param {File} file - 読み込むFileオブジェクト
- * @returns {Promise<string>} ファイルのテキスト内容
- */
-const readFileContent = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (err) => reject(err);
-    reader.readAsText(file);
-  });
-};
-
-
 // --- メインフック ---
 const useChat = () => {
   // --- StateとRef ---
@@ -81,16 +65,16 @@ const useChat = () => {
   // --- ヘルパー関数 (メッセージ送信ロジック) ---
 
   /**
-   * テキスト入力とファイル内容からAPI送信用コンテンツ文字列を構築します。
+   * テキスト入力とアップロードされたファイル情報からAPI送信用コンテンツ文字列を構築します。
    * @param {string} textInput - 現在のテキスト入力値
-   * @param {Array<{fileName: string, text: string}>} fileContents - 読み込まれたファイル内容の配列
+   * @param {Array<{filename: string, saved_path: string}>} uploadedFileInfos - アップロードされたファイル情報 ({filename, saved_path}) の配列
    * @returns {string} API送信用コンテンツ文字列
    */
-  const buildCombinedContent = (textInput, fileContents) => {
+  const buildCombinedContent = (textInput, uploadedFileInfos) => {
     let combinedContent = textInput;
-    if (fileContents && fileContents.length > 0) {
-      const fileDescriptions = fileContents.map(fc =>
-        `\n[添付ファイル: ${fc.fileName || '名称不明'}]\n\`\`\`\n${fc.text}\n\`\`\``
+    if (uploadedFileInfos && uploadedFileInfos.length > 0) {
+      const fileDescriptions = uploadedFileInfos.map(info =>
+        `\n[添付ファイル: ${info.filename} (パス: ${info.saved_path})]`
       ).join('');
       combinedContent += fileDescriptions;
     }
@@ -214,16 +198,49 @@ const useChat = () => {
     let newUserTextMessage = null; // スコープ内で参照するため
 
     try {
-      // 1. ファイル内容の読み込み (非同期)
-      const fileReadPromises = validFilesToUpload.map(fileData =>
-        readFileContent(fileData.file).then(text => ({ fileName: fileData.file.name, text }))
-      );
-      const fileContents = await Promise.all(fileReadPromises);
+      // 1. ファイルをバックエンドにアップロード
+      const uploadedFileInfos = [];
+      if (validFilesToUpload.length > 0) {
+        const uploadPromises = validFilesToUpload.map(async (fileData) => {
+          const formData = new FormData();
+          formData.append('file', fileData.file);
+          try {
+            const uploadResponse = await fetch(`${BACKEND_URL}/api/upload`, {
+              method: 'POST',
+              body: formData,
+            });
+            if (!uploadResponse.ok) {
+              const errorData = await uploadResponse.json().catch(() => ({ detail: `ファイルアップロードエラー: ${uploadResponse.status}` }));
+              throw new Error(errorData.detail || `ファイル '${fileData.file.name}' のアップロードに失敗しました。`);
+            }
+            return await uploadResponse.json(); // {filename, saved_path, message}
+          } catch (uploadError) {
+            console.error(`Error uploading ${fileData.file.name}:`, uploadError);
+            setError(`ファイル '${fileData.file.name}' のアップロード中にエラー: ${uploadError.message}`);
+            return null; // エラーが発生したファイルは null を返す
+          }
+        });
+        const results = await Promise.all(uploadPromises);
+        results.forEach(result => {
+          if (result && result.saved_path) { // 正常にアップロードされたものだけ追加
+            uploadedFileInfos.push({filename: result.filename, saved_path: result.saved_path});
+          }
+        });
+        // 1つでもアップロードに失敗したら、エラーを表示して処理を中断することも検討
+        if (uploadedFileInfos.length !== validFilesToUpload.length) {
+            console.warn("いくつかのファイルのアップロードに失敗しました。");
+            // 必要であればここでユーザーに通知し、処理を中断する
+            // setError("いくつかのファイルのアップロードに失敗しました。");
+            // setIsLoading(false);
+            // return;
+        }
+      }
 
-      // 2. API送信用コンテンツ作成 (テキスト + 読み込んだファイル内容)
-      const combinedContent = buildCombinedContent(currentInput, fileContents);
+      // 2. API送信用コンテンツ作成 (テキスト + アップロードされたファイル情報)
+      const combinedContent = buildCombinedContent(currentInput, uploadedFileInfos);
 
       // 3. UI更新 (テキストメッセージ追加、送信済みフラグ更新)
+      // この時点で uploadedFilesData は useFileUpload フック側でクリアされる想定
       const { updatedMessages, newUserTextMessage: createdMessage } = updateUiBeforeSend(currentInput, messages, setMessages);
       newUserTextMessage = createdMessage; // エラーハンドリング用に保持
       setInput(''); // 入力欄をクリア (ファイルプレビューはChatInput側でクリアされる想定)
