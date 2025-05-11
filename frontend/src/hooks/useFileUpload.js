@@ -52,8 +52,8 @@ const readFileForPreview = (file) => {
         resolve({
           id: fileId,
           file: file,
-          preview: null,
-          error: `サポートされていないファイル形式です (${fileType || '不明'})。テキストファイルを選択してください。`,
+          preview: null, // サポート外の場合はプレビューなし
+          error: `サポート外のファイル形式です。`, // エラーメッセージを簡略化
           type: 'unsupported',
         });
       }
@@ -65,7 +65,7 @@ const readFileForPreview = (file) => {
         id: fileId,
         file: file,
         preview: null,
-        error: 'ファイル読み込み中にエラーが発生しました。',
+        error: 'ファイル読み込みエラー。', // エラーメッセージを簡略化
         type: 'unsupported',
       });
     };

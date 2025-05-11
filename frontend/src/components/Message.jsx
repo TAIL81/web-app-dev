@@ -1,12 +1,12 @@
-import React, { useState } from 'react'; // useCallback, useEffect を削除
-// import ReactMarkdown from 'react-markdown'; // 一時的にコメントアウト
-// import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'; // 一時的にコメントアウト
-// import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism'; // 一時的にコメントアウト
-import { User, Bot, BrainCircuit, ChevronDown, ChevronUp } from 'lucide-react'; // Copy, Check を削除
-// LaTeXサポート用ライブラリ (今回は無効化)
-// import remarkMath from 'remark-math';
-// import rehypeKatex from 'rehype-katex';
-// import 'katex/dist/katex.min.css'; // KaTeXのCSSを一時的に無効化
+import React, { useState, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { User, Bot, BrainCircuit, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+// LaTeXサポート用ライブラリ
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 // const REASONING_OPEN_STORAGE_KEY = 'reasoningDefaultOpen'; // localStorageを使用しないため削除
 
@@ -15,20 +15,20 @@ const Message = ({ message }) => {
   // 初期状態を閉じた状態に変更
   const [isReasoningOpen, setIsReasoningOpen] = useState(false); // デフォルトで閉じる
 
-  // const [copiedStates, setCopiedStates] = useState({}); // 一時的にコメントアウト
+  const [copiedStates, setCopiedStates] = useState({});
 
 
   // コードブロックのコピー処理
-  // const handleCopy = useCallback((codeToCopy, index) => { // 一時的にコメントアウト
-  //   navigator.clipboard.writeText(codeToCopy).then(() => {
-  //     setCopiedStates(prev => ({ ...prev, [index]: true }));
-  //     setTimeout(() => {
-  //       setCopiedStates(prev => ({ ...prev, [index]: false }));
-  //     }, 1500);
-  //   }).catch(err => {
-  //     console.error('Failed to copy code: ', err);
-  //   });
-  // }, []);
+  const handleCopy = useCallback((codeToCopy, index) => {
+    navigator.clipboard.writeText(codeToCopy).then(() => {
+      setCopiedStates(prev => ({ ...prev, [index]: true }));
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [index]: false }));
+      }, 1500);
+    }).catch(err => {
+      console.error('Failed to copy code: ', err);
+    });
+  }, []);
 
   // 早期リターン: hidden プロパティを持つメッセージはレンダリングしない
   if (message.hidden) {
@@ -36,7 +36,7 @@ const Message = ({ message }) => {
   }
 
   // --- Markdown Components for ReactMarkdown ---
-  /* const markdownComponents = { // コードブロックと段落のカスタムレンダリング // 一時的にコメントアウト
+  const markdownComponents = { // コードブロックと段落のカスタムレンダリング
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children).replace(/\n$/, '');
@@ -72,7 +72,7 @@ const Message = ({ message }) => {
     // prose クラスが適用されているため、スタイルは維持されるはず
     // 段落間のスペースを維持するために mb-4 (Tailwindのマージンクラス) を追加
     p: ({ node, children, ...props }) => <div className="mb-4 last:mb-0" {...props}>{children}</div> // クラスを最小限にし、枠関連のクラスを削除
-  }; */
+  };
 
   // --- Component Rendering ---
   return (
@@ -153,12 +153,15 @@ const Message = ({ message }) => {
               // 強制的に枠線、アウトライン、ボックスシャドウ、背景画像、パディング、マージンをリセット
               // style={{ border: 'none !important', outline: 'none !important', boxShadow: 'none !important', backgroundImage: 'none !important', padding: '0 !important', margin: '0 !important' }} // インラインスタイルは一旦コメントアウト
             >
-              <div className="markdown-content-temp-test border-0 outline-none shadow-none bg-transparent p-0 m-0"> {/* クラス名を一時的に変更 */}
+              <div className="prose prose-sm sm:prose dark:prose-invert max-w-none text-gray-800 dark:text-dark-text">
                 {message.content ? (
-                  // ReactMarkdownの使用を一時的に停止し、プレーンテキストで表示
-                  <div className="whitespace-pre-wrap break-words text-gray-800 dark:text-dark-text"> {/* 文字色を指定 */}
+                  <ReactMarkdown
+                    components={markdownComponents}
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
                     {message.content}
-                  </div>
+                  </ReactMarkdown>
                 ) : (
                   !message.reasoning && (!message.tool_calls || message.tool_calls.length === 0) && "..."
                 )}

@@ -1,24 +1,33 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react'; // useEffect を追加
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown } from 'lucide-react'; // ChevronDown を追加
-import useFileUpload from '../hooks/useFileUpload';
+import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown } from 'lucide-react';
+// import useFileUpload from '../hooks/useFileUpload'; // App.jsx から props で渡されるため削除
 import FilePreview from './FilePreview';
 
 const ChatInput = ({
   input,
   handleInputChange,
-  isLoading, // isExpanding を削除
+  isLoading,
   handleSend,
+  // FileUpload props from App.jsx
+  uploadedFiles,
+  isDragging,
+  removeFile,
+  clearAllFiles, // App.jsx から渡される clearFiles 関数 (名前変更を反映)
+  handleDragEnter,
+  handleDragLeave,
+  handleDragOver,
+  handleDrop,
+  handleFileChange: onFileChange, // App.jsx から渡される handleFileChange (名前変更を反映)
 }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
-  const templateButtonRef = useRef(null); // ボタンの参照用
-  const templateDropdownRef = useRef(null); // ドロップダウンの参照用
+  const templateButtonRef = useRef(null);
+  const templateDropdownRef = useRef(null);
 
   // --- プロンプトテンプレート機能 State ---
   const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
   const promptTemplates = [
-    // label: メニュー表示名, value: ペルソナ指示文
     { id: 'summary', label: '要約させる', value: 'あなたは要約の専門家です。' },
     { id: 'review', label: 'レビューさせる', value: 'あなたは優秀なレビュアーです。' },
     { id: 'ideas', label: 'アイデアを出させる', value: 'あなたは発想力豊かなプランナーです。' },
@@ -27,27 +36,17 @@ const ChatInput = ({
   ];
   // --- /プロンプトテンプレート機能 State ---
 
-  const {
-    uploadedFiles,
-    isDragging,
-    removeFile,
-    clearFiles,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
-    handleFileChange,
-  } = useFileUpload();
-
   // Enterキーでの送信ハンドラ
   const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Enter' && event.ctrlKey && !isLoading) { // Ctrlキーが押されているかを確認
+    if (event.key === 'Enter' && event.ctrlKey && !isLoading) {
       event.preventDefault();
       handleSend(uploadedFiles.filter(f => !f.error));
-      clearFiles();
+      // ChatInput 内での clearFiles 呼び出しは App.jsx の handleSend 側で行うか、
+      // handleSend が成功した後に App.jsx 側で clearFiles を呼ぶ形にするのが一般的。
+      // ここでは App.jsx の handleSend にファイルクリアも委ねる想定なので削除。
+      // clearAllFiles(); // 送信後にファイルをクリアする場合 (App.jsx側で制御するなら不要)
     }
-    // Enterキー単独の場合や、Shift+Enterの場合は、TextareaAutosizeのデフォルトの挙動（改行）になります。
-  }, [handleSend, clearFiles, isLoading, uploadedFiles]);
+  }, [handleSend, isLoading, uploadedFiles]);
 
   // ファイル削除ハンドラ
   const handleRemoveFile = useCallback((fileId) => {
@@ -122,7 +121,7 @@ const ChatInput = ({
               添付ファイル ({uploadedFiles.length}件)
             </span>
             <button
-              onClick={clearFiles}
+              onClick={clearAllFiles} // App.jsx から渡された clearAllFiles を使用
               disabled={isLoading}
               className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
               title="すべての添付ファイルをクリア"
@@ -130,7 +129,7 @@ const ChatInput = ({
               すべてクリア
             </button>
           </div>
-          <div className="flex flex-wrap gap-2"> {/* flex, flex-wrap, gap-2 を追加 */}
+          <div className="flex flex-wrap gap-2">
             {uploadedFiles.map((fileData) => (
               <FilePreview
                 key={fileData.id}
@@ -151,7 +150,7 @@ const ChatInput = ({
         <input
           type="file"
           ref={fileInputRef}
-          onChange={handleFileChange}
+          onChange={onFileChange} // App.jsx から渡された onFileChange を使用
           className="hidden"
           multiple
           accept=".md,.py,.js,.ts,.html,.css,.json,.yaml,.yml,.csv,.txt,text/*"
