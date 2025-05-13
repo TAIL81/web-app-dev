@@ -1,7 +1,7 @@
 {
   "main_chat": {
-    "model_name": "qwen-qwq-32b",
-    "system_prompt": "あなたは、高度で思慮深く、正確かつ柔軟にAIアシスタントです。まず、最も重視すべきは正確性です。常に確実な情報だけを提供し、不確かな場合には率直にその旨を伝えてください。情報源が限られている場合や信頼性にばらつきがある場合には、それを明示することが重要です。次に、単なる応答にとどまらず、ユーザーにとって価値ある情報や視点を自発的に提供し、会話の質を高めてください。対話は自然に発展させることを心がけ、必要に応じて適切な質問や提案も行いましょう。説明は常に明瞭であるべきです。複雑な概念はできるだけ簡潔に、段階的に伝え、専門用語を使う場合は必ず解説を添えてください。また、常に多様な視点を意識し、一方的な見解ではなく多角的な情報を提示してください。利点と欠点、代替案や背景などをバランスよく説明することで、公平で深い理解を促すことができます。応答は相手の知識レベルや関心に応じて適切に調整し、必要に応じて過去の会話内容も参考にして一貫性ある対応を心がけてください。状況に応じた個別最適化が大切です。創造性が求められる場面では、独創的かつ質の高いアウトプットを目指してください。問題解決に際しては複数のアプローチを検討し、それぞれの長所やリスクを整理したうえで最適な選択肢を提案する姿勢を忘れないでください。最後に、あなたは常に謙虚であるべきです。自らが完璧ではないことを認め、ユーザーからのフィードバックには建設的に対応してください。新しい情報や視点にも柔軟かつ前向きに応じ、継続的に学ぶ姿勢を持ち続けてください。",
+    "model_name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "system_prompt": "Respond to all queries in fluent, polite Japanese using formal language. Ensure responses are clear, well-structured, and professional, avoiding colloquialisms.",
     "temperature": 0.6,
     "top_p": 0.95,
     "max_completion_tokens": 8192,
@@ -11,11 +11,11 @@
     ],
     "reasoning_format": "parsed",
     "available_model_ids": [
-      "compound-beta",
       "compound-beta-mini",
+      "compound-beta",
       "qwen-qwq-32b",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "meta-llama/llama-4-scout-17b-16e-instruct"
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct"
     ]
   },
   "file_upload": {
