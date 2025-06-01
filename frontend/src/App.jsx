@@ -1,10 +1,12 @@
 import React, { useEffect, useCallback } from 'react';
 import { AlertCircle, Sun, Moon, Trash2, Loader2 } from 'lucide-react';
+import { ToastContainer } from 'react-toastify'; // ToastContainer をインポート
+import 'react-toastify/dist/ReactToastify.css'; // Toastify のCSSをインポート
 import useChat from './hooks/useChat';
-import useFileUpload from './hooks/useFileUpload'; // useFileUpload をインポート
-import Message from './components/Message'; // Message をインポート
+import useFileUpload from './hooks/useFileUpload';
+import Message from './components/Message';
 import ChatInput from './components/ChatInput';
-import AnalogClock from './components/AnalogClock'; // アナログ時計コンポーネントをインポート
+import AnalogClock from './components/AnalogClock';
 
 function App() {
   const {

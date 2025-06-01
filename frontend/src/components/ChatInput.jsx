@@ -1,7 +1,8 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown, X, FileText, Link } from 'lucide-react'; // Added X, FileText, Link
+import { Send, Paperclip, UploadCloud, Sparkles, ChevronDown, X, FileText, Link } from 'lucide-react';
 import FilePreview from './FilePreview';
+import { toast } from 'react-toastify'; // toast をインポート
 
 const ChatInput = ({
   input,
@@ -17,73 +18,107 @@ const ChatInput = ({
   handleDragOver,
   handleDrop,
   handleFileChange: onFileChange,
-  setSelectedFile, // This prop is available if needed, but onFileChange should handle file selection
+  setSelectedFile,
 }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
-  const templateButtonRef = useRef(null);
-  const templateDropdownRef = useRef(null);
+  // const templateButtonRef = useRef(null); // 不要になったため削除
+  // const templateDropdownRef = useRef(null); // 不要になったため削除
 
-  const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false);
-  const promptTemplates = [
-    { id: 'summary', label: '要約させる', value: 'あなたは要約の専門家です。' },
-    { id: 'review', label: 'レビューさせる', value: 'あなたは優秀なレビュアーです。' },
-    { id: 'ideas', label: 'アイデアを出させる', value: 'あなたは発想力豊かなプランナーです。' },
-    { id: 'translate_jp', label: '日本語に翻訳させる', value: 'あなたはプロの翻訳家です。日本語に翻訳してください。' },
-    { id: 'explain', label: '説明させる', value: 'あなたはその分野の専門家です。分かりやすく説明してください。' },
-  ];
+  // const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false); // 不要になったため削除
+  // promptTemplates はバックエンドから動的に生成するため削除
+  // const promptTemplates = [
+  //   { id: 'summary', label: '要約させる', value: 'あなたは要約の専門家です。' },
+  //   { id: 'review', label: 'レビューさせる', value: 'あなたは優秀なレビュアーです。' },
+  //   { id: 'ideas', label: 'アイデアを出させる', value: 'あなたは発想力豊かなプランナーです。' },
+  //   { id: 'translate_jp', label: '日本語に翻訳させる', value: 'あなたはプロの翻訳家です。日本語に翻訳してください。' },
+  //   { id: 'explain', label: '説明させる', value: 'あなたはその分野の専門家です。分かりやすく説明してください。' },
+  // ];
 
-  // State for the new attachment modal
   const [isAttachmentModalOpen, setIsAttachmentModalOpen] = useState(false);
-  const [attachmentTypeInModal, setAttachmentTypeInModal] = useState('file'); // 'file' or 'url'
+  const [attachmentTypeInModal, setAttachmentTypeInModal] = useState('file');
   const [urlInputValue, setUrlInputValue] = useState('');
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false); // プロンプト生成中の状態
 
   const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Enter' && event.ctrlKey && !isLoading) {
+    if (event.key === 'Enter' && event.ctrlKey && !isLoading && !isGeneratingPrompt) {
       event.preventDefault();
       handleSend(uploadedFiles.filter(f => !f.error));
     }
-  }, [handleSend, isLoading, uploadedFiles]);
+  }, [handleSend, isLoading, uploadedFiles, isGeneratingPrompt]);
 
   const handleRemoveFile = useCallback((fileId) => {
     removeFile(fileId);
   }, [removeFile]);
 
-  const toggleTemplateDropdown = () => {
-    setIsTemplateDropdownOpen(prev => !prev);
-  };
+  // const toggleTemplateDropdown = () => { // 不要になったため削除
+  //   setIsTemplateDropdownOpen(prev => !prev);
+  // };
 
-  const handleInsertTemplate = (instruction) => {
-    const currentInput = input.trim();
-    let newContent = instruction;
-    if (currentInput) {
-      newContent = `${instruction}\n\n以下の内容についてお願いします:\n\`\`\`\n${currentInput}\n\`\`\``;
-    } else {
-      newContent += '\n';
+  // const handleInsertTemplate = (instruction) => { // 不要になったため削除
+  //   const currentInput = input.trim();
+  //   let newContent = instruction;
+  //   if (currentInput) {
+  //     newContent = `${instruction}\n\n以下の内容についてお願いします:\n\`\`\`\n${currentInput}\n\`\`\``;
+  //   } else {
+  //     newContent += '\n';
+  //   }
+  //   handleInputChange(newContent);
+  //   setIsTemplateDropdownOpen(false);
+  //   textareaRef.current?.focus();
+  // };
+
+  // メタプロンプト生成ハンドラ
+  const handleGenerateMetaprompt = useCallback(async () => {
+    setIsGeneratingPrompt(true);
+    const defaultTask = "Draft an email responding to a customer complaint"; // デフォルトタスク
+    const task = input.trim() || defaultTask; // 現在の入力があればそれを使用、なければデフォルト
+
+    try {
+      const response = await fetch('/api/generate-metaprompt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ task }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'プロンプト生成に失敗しました。');
+      }
+
+      const data = await response.json();
+      handleInputChange(data.prompt); // 生成されたプロンプトを入力欄に自動挿入
+      toast.success('プロンプトテンプレートを生成しました！');
+      textareaRef.current?.focus();
+    } catch (error) {
+      console.error('メタプロンプト生成エラー:', error);
+      toast.error(`プロンプト生成エラー: ${error.message}`);
+    } finally {
+      setIsGeneratingPrompt(false);
     }
-    handleInputChange(newContent);
-    setIsTemplateDropdownOpen(false);
-    textareaRef.current?.focus();
-  };
+  }, [input, handleInputChange]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        isTemplateDropdownOpen &&
-        templateDropdownRef.current &&
-        !templateDropdownRef.current.contains(event.target) &&
-        templateButtonRef.current &&
-        !templateButtonRef.current.contains(event.target)
-      ) {
-        setIsTemplateDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isTemplateDropdownOpen]);
+    // ドロップダウン関連の useEffect は不要になったため削除
+    // const handleClickOutside = (event) => {
+    //   if (
+    //     isTemplateDropdownOpen &&
+    //     templateDropdownRef.current &&
+    //     !templateDropdownRef.current.contains(event.target) &&
+    //     templateButtonRef.current &&
+    //     !templateButtonRef.current.contains(event.target)
+    //   ) {
+    //     setIsTemplateDropdownOpen(false);
+    //   }
+    // };
+    // document.addEventListener('mousedown', handleClickOutside);
+    // return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []); // 依存配列を空に
 
   const openAttachmentModal = () => {
-    setAttachmentTypeInModal('file'); // Default to file
+    setAttachmentTypeInModal('file');
     setUrlInputValue('');
     setIsAttachmentModalOpen(true);
   };
@@ -94,22 +129,16 @@ const ChatInput = ({
 
   const handleSelectFileFromModal = () => {
     fileInputRef.current?.click();
-    // onFileChange will be triggered by the input, then we can close modal
-    // For now, let's assume onFileChange might need to signal modal closure or App.jsx handles it
   };
   
-  // Wrapper for onFileChange to close modal
   const handleFileSelectedAndCloseModal = (event) => {
-    onFileChange(event); // Call the original handler passed from App.jsx
+    onFileChange(event);
     closeAttachmentModal();
   };
 
   const handleAddUrlFromModal = () => {
     if (urlInputValue.trim()) {
       console.log("URL submitted:", urlInputValue);
-      // Here, you would typically pass the URL to a handler in App.jsx
-      // For example: onUrlSubmit(urlInputValue);
-      // For now, just log and close
       setUrlInputValue('');
       closeAttachmentModal();
     }
@@ -139,7 +168,7 @@ const ChatInput = ({
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">添付ファイル ({uploadedFiles.length}件)</span>
             <button
               onClick={clearAllFiles}
-              disabled={isLoading}
+              disabled={isLoading || isGeneratingPrompt}
               className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
               title="すべての添付ファイルをクリア"
             >
@@ -148,7 +177,7 @@ const ChatInput = ({
           </div>
           <div className="flex flex-wrap gap-2">
             {uploadedFiles.map((fileData) => (
-              <FilePreview key={fileData.id} fileData={fileData} onRemove={handleRemoveFile} isLoading={isLoading} />
+              <FilePreview key={fileData.id} fileData={fileData} onRemove={handleRemoveFile} isLoading={isLoading || isGeneratingPrompt} />
             ))}
           </div>
         </div>
@@ -158,16 +187,16 @@ const ChatInput = ({
         <input
           type="file"
           ref={fileInputRef}
-          onChange={handleFileSelectedAndCloseModal} // Use wrapper to close modal
+          onChange={handleFileSelectedAndCloseModal}
           className="hidden"
           multiple
           accept=".md,.py,.js,.ts,.html,.css,.json,.yaml,.yml,.csv,.txt,text/*"
-          disabled={isLoading}
+          disabled={isLoading || isGeneratingPrompt}
         />
 
         <button
-          onClick={openAttachmentModal} // Changed to open modal
-          disabled={isLoading}
+          onClick={openAttachmentModal}
+          disabled={isLoading || isGeneratingPrompt}
           aria-label="ファイルまたはURLを添付"
           title="ファイルまたはURLを添付 (クリックまたはドラッグ＆ドロップ)"
           className={`p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 transition-colors disabled:opacity-50 flex-shrink-0`}
@@ -177,20 +206,22 @@ const ChatInput = ({
 
         <div className="relative flex-shrink-0">
           <button
-            ref={templateButtonRef}
-            onClick={toggleTemplateDropdown}
-            disabled={isLoading}
-            aria-label="プロンプトテンプレートを選択"
-            title="プロンプトテンプレート"
-            className={`p-2 rounded-lg flex items-center gap-1 transition duration-200 ease-in-out transform ${isLoading
+            // ref={templateButtonRef} // 不要になったため削除
+            onClick={handleGenerateMetaprompt} // メタプロンプト生成関数を呼び出す
+            disabled={isLoading || isGeneratingPrompt}
+            aria-label="プロンプトテンプレートを生成"
+            title="プロンプトテンプレートを生成"
+            className={`p-2 rounded-lg flex items-center gap-1 transition duration-200 ease-in-out transform ${isLoading || isGeneratingPrompt
               ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50'
               : 'bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
               }`}
           >
             <Sparkles className="w-5 h-5" />
-            <ChevronDown className={`w-4 h-4 transition-transform ${isTemplateDropdownOpen ? 'rotate-180' : ''}`} />
+            {/* ChevronDown は不要になったため削除 */}
+            {/* <ChevronDown className={`w-4 h-4 transition-transform ${isTemplateDropdownOpen ? 'rotate-180' : ''}`} /> */}
           </button>
-          {isTemplateDropdownOpen && (
+          {/* テンプレートドロップダウンは不要になったため削除 */}
+          {/* {isTemplateDropdownOpen && (
             <div
               ref={templateDropdownRef}
               className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-30 overflow-hidden"
@@ -205,7 +236,7 @@ const ChatInput = ({
                 ))}
               </ul>
             </div>
-          )}
+          )} */}
         </div>
 
         <TextareaAutosize
@@ -216,7 +247,7 @@ const ChatInput = ({
           placeholder="メッセージを入力... (Ctrl+Enterで送信, EnterまたはShift+Enterで改行)"
           className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-700 dark:text-dark-text transition resize-none overflow-y-auto"
           style={{ fontFamily: "'Meiryo', 'メイリオ', sans-serif" }}
-          disabled={isLoading}
+          disabled={isLoading || isGeneratingPrompt}
           minRows={1}
           maxRows={6}
           aria-label="メッセージ入力"
@@ -224,9 +255,9 @@ const ChatInput = ({
 
         <button
           onClick={() => handleSend(uploadedFiles.filter(f => !f.error))}
-          disabled={isLoading || !input.trim()}
+          disabled={isLoading || isGeneratingPrompt || !input.trim()}
           aria-label="送信 (Ctrl+Enter)"
-          className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || !input.trim()
+          className={`p-2 rounded-lg text-white flex-shrink-0 transition duration-200 ease-in-out transform ${isLoading || isGeneratingPrompt || !input.trim()
             ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
             : 'bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-dark-card'
             }`}
@@ -273,7 +304,7 @@ const ChatInput = ({
               <div className="text-center">
                 <button
                   onClick={handleSelectFileFromModal}
-                  disabled={isLoading}
+                  disabled={isLoading || isGeneratingPrompt}
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
                 >
                   ファイルを選択...
@@ -292,11 +323,11 @@ const ChatInput = ({
                   onChange={(e) => setUrlInputValue(e.target.value)}
                   placeholder="https://example.com/image.jpg"
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700 dark:text-dark-text mb-3"
-                  disabled={isLoading}
+                  disabled={isLoading || isGeneratingPrompt}
                 />
                 <button
                   onClick={handleAddUrlFromModal}
-                  disabled={isLoading || !urlInputValue.trim()}
+                  disabled={isLoading || isGeneratingPrompt || !urlInputValue.trim()}
                   className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
                 >
                   URLを追加
